@@ -38,12 +38,12 @@ const db   = getFirestore(app);
 // ══ BRANCH CONFIG ════════════════════════════════
 const BRANCHES = {
   "hq@mfmararomi.org":      { id:"HQ", name:"Regional HQ — SW 58 Araromi", short:"Main Assembly",  role:"accountant" },
-  "okeijebu@mfmararomi.org":{ id:"B1", name:"MFM Oke-Ijebu Assembly",       short:"Oke-Ijebu",      role:"accountant" },
-  "ijoka@mfmararomi.org":   { id:"B2", name:"MFM Ijoka Assembly",            short:"Ijoka",          role:"accountant" },
-  "shagari@mfmararomi.org": { id:"B3", name:"MFM Shagari Assembly",          short:"Shagari",        role:"accountant" },
-  "aswani@mfmararomi.org":  { id:"B4", name:"MFM Aswani Assembly",           short:"Aswani",         role:"accountant" },
-  "obaile@mfmararomi.org":  { id:"B5", name:"MFM Oba-Ile Assembly",          short:"Oba-Ile",        role:"accountant" },
-  "ijapo@mfmararomi.org":   { id:"B6", name:"MFM Ijapo Assembly",            short:"Ijapo",          role:"accountant" },
+  "abundant@mfmararomi.org":{ id:"B1", name:"MFM Abundant Assembly",       short:"Abundant",      role:"accountant" },
+  "Ilere@mfmararomi.org":   { id:"B2", name:"MFM Ilere Assembly",            short:"Ilere",          role:"accountant" },
+  "Irese1@mfmararomi.org": { id:"B3", name:"MFM Irese1 Assembly",          short:"Irese1",        role:"accountant" },
+  "Irese2@mfmararomi.org":  { id:"B4", name:"MFM Irese2 Assembly",           short:"Irese2",         role:"accountant" },
+  "Olorunda@mfmararomi.org":  { id:"B5", name:"MFM Olorunda Assembly",          short:"Olorunda",        role:"accountant" },
+  "Children/teen@mfmararomi.org":   { id:"B6", name:"MFM Children/teen Assembly",            short:"Children/teen",          role:"accountant" },
   "admin@mfmararomi.org":   { id:"ADMIN", name:"Regional Administrator",     short:"All Branches",   role:"admin" },
 };
 
@@ -627,7 +627,7 @@ tfoot td{border-top:2px solid var(--border);}
       </svg>
     </div>
     <h2>MFM Financial Portal</h2>
-    <p>Akure Regional Office · Ondo State, Nigeria</p>
+    <p>SW58 Regional Hqtrs · Ondo State, Nigeria</p>
   </div>
   <div class="security-badge">
     <span>🔒</span>
@@ -644,11 +644,7 @@ tfoot td{border-top:2px solid var(--border);}
   <button class="btn-login" id="loginBtn" onclick="doLogin()">Login to Portal</button>
   <div class="login-err" id="loginErr"></div>
 
-  <div class="login-setup">
-    <h4>⚙️ Firebase Setup Required</h4>
-    <p>This portal requires a Firebase project to store data in real time across all branches. Follow the setup guide inside the portal after configuring your Firebase credentials in the HTML file.</p>
-    <p style="margin-top:.5rem;">Branch emails follow the pattern: <code>hq@mfmararomi.org</code>, <code>okeijebu@mfmararomi.org</code>, etc.</p>
-  </div>
+
 </div>
 </div>
 
