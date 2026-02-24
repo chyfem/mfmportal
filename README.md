@@ -1,2 +1,0 @@
-# mfmportal
-Trying database
