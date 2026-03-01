@@ -13,7 +13,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
         from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc,
-         query, where, orderBy, onSnapshot, serverTimestamp, Timestamp }
+         query, orderBy, serverTimestamp }
         from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ══════════════════════════════════════════════════
@@ -22,13 +22,12 @@ import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc,
 //  project credentials from console.firebase.google.com
 // ══════════════════════════════════════════════════
 const firebaseConfig = {
-    apiKey: "AIzaSyABnQZoWvm5YWGgi7H1J1Xw_I0cY4NM3ms",
-    authDomain: "mfmsw58.firebaseapp.com",
-    projectId: "mfmsw58",
-    storageBucket: "mfmsw58.firebasestorage.app",
-    messagingSenderId: "14538297927",
-    appId: "1:14538297927:web:8297943c352fe377add762",
-    measurementId: "G-C0DDPPK9V0"
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
 };
 
 const app  = initializeApp(firebaseConfig);
@@ -38,12 +37,12 @@ const db   = getFirestore(app);
 // ══ BRANCH CONFIG ════════════════════════════════
 const BRANCHES = {
   "hq@mfmararomi.org":      { id:"HQ", name:"Regional HQ — SW 58 Araromi", short:"Main Assembly",  role:"accountant" },
-  "abundant@mfmararomi.org":{ id:"B1", name:"MFM Abundant Assembly",       short:"Abundant",      role:"accountant" },
-  "ilere@mfmararomi.org":   { id:"B2", name:"MFM Ilere Assembly",            short:"Ilere",          role:"accountant" },
-  "irese1@mfmararomi.org": { id:"B3", name:"MFM Irese1 Assembly",          short:"Irese1",        role:"accountant" },
-  "irese2@mfmararomi.org":  { id:"B4", name:"MFM Irese2 Assembly",           short:"Irese2",         role:"accountant" },
-  "olorunda@mfmararomi.org":  { id:"B5", name:"MFM Olorunda Assembly",          short:"Olorunda",        role:"accountant" },
-  "unity@mfmararomi.org":   { id:"B6", name:"MFM Children/teen Assembly",            short:"Children/teen",          role:"accountant" },
+  "okeijebu@mfmararomi.org":{ id:"B1", name:"MFM Oke-Ijebu Assembly",       short:"Oke-Ijebu",      role:"accountant" },
+  "ijoka@mfmararomi.org":   { id:"B2", name:"MFM Ijoka Assembly",            short:"Ijoka",          role:"accountant" },
+  "shagari@mfmararomi.org": { id:"B3", name:"MFM Shagari Assembly",          short:"Shagari",        role:"accountant" },
+  "aswani@mfmararomi.org":  { id:"B4", name:"MFM Aswani Assembly",           short:"Aswani",         role:"accountant" },
+  "obaile@mfmararomi.org":  { id:"B5", name:"MFM Oba-Ile Assembly",          short:"Oba-Ile",        role:"accountant" },
+  "ijapo@mfmararomi.org":   { id:"B6", name:"MFM Ijapo Assembly",            short:"Ijapo",          role:"accountant" },
   "admin@mfmararomi.org":   { id:"ADMIN", name:"Regional Administrator",     short:"All Branches",   role:"admin" },
 };
 
@@ -112,7 +111,31 @@ function startApp(){
   document.getElementById('income-month-label').textContent = new Date().toLocaleString('default',{month:'long',year:'numeric'});
   document.getElementById('exp-month-label').textContent    = new Date().toLocaleString('default',{month:'long',year:'numeric'});
   if(b.role==='admin') document.getElementById('sb-regional').style.display='flex';
+  // Test Firestore connection
+  testFirestoreConnection();
   loadDashboard();
+}
+
+async function testFirestoreConnection(){
+  try {
+    const testCol = collection(db,'transactions');
+    await getDocs(testCol);
+    // Connection OK - show green dot
+    document.querySelector('.tb-live-dot').style.background='var(--green)';
+    document.querySelector('.tb-live').style.color='var(--green)';
+    console.log('✅ Firestore connected successfully');
+  } catch(e){
+    // Connection failed - show red dot and alert
+    document.querySelector('.tb-live-dot').style.background='var(--red)';
+    document.querySelector('.tb-live').style.color='var(--red)';
+    document.querySelector('.tb-live').innerHTML='<div class="tb-live-dot" style="background:var(--red)"></div>Offline';
+    console.error('❌ Firestore connection failed:', e.code, e.message);
+    // Show banner
+    const banner = document.createElement('div');
+    banner.style.cssText='background:#FEF2F2;border-bottom:2px solid #FECACA;padding:.75rem 2rem;font-family:Montserrat,sans-serif;font-size:.8rem;color:#B91C1C;font-weight:600;';
+    banner.innerHTML = '⚠️ Firebase connection error: <strong>' + (e.code||e.message) + '</strong> — Check your Firebase credentials and Firestore rules.';
+    document.querySelector('.main-content').prepend(banner);
+  }
 }
 
 // ══ NAVIGATION ════════════════════════════════════
@@ -133,29 +156,57 @@ window.showPage = async function(id, btn){
 
 // ══ FIRESTORE HELPERS ═════════════════════════════
 async function getTxns(branchId){
-  const col = collection(db,'transactions');
-  let q;
-  if(!branchId || branchId==='ADMIN'){
-    q = query(col, orderBy('date','desc'));
-  } else {
-    q = query(col, where('branch','==',branchId), orderBy('date','desc'));
+  try {
+    const col  = collection(db,'transactions');
+    const snap = await getDocs(col);
+    let docs   = snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(branchId && branchId!=='ADMIN'){
+      docs = docs.filter(t=>t.branch===branchId);
+    }
+    docs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    return docs;
+  } catch(e){
+    console.error('Firestore read error:',e);
+    return [];
   }
-  const snap = await getDocs(q);
-  return snap.docs.map(d=>({id:d.id,...d.data()}));
 }
 
 async function addTxn(data){
-  await addDoc(collection(db,'transactions'),{...data, createdAt:serverTimestamp()});
+  try {
+    await addDoc(collection(db,'transactions'),{...data, createdAt:serverTimestamp()});
+    return true;
+  } catch(e){
+    console.error('addTxn error:',e);
+    throw e;
+  }
 }
 
 async function deleteTxn(id){
-  await deleteDoc(doc(db,'transactions',id));
+  try {
+    await deleteDoc(doc(db,'transactions',id));
+    return true;
+  } catch(e){
+    console.error('deleteTxn error:',e);
+    throw e;
+  }
 }
 
 // ══ DASHBOARD ═════════════════════════════════════
 async function loadDashboard(){
+  // Show loading state
+  document.getElementById('stat-grid').innerHTML=`
+    <div class="stat-card purple"><div class="stat-label">This Month's Income</div><div class="stat-value purple" style="font-size:1rem;">⏳ Loading…</div></div>
+    <div class="stat-card red"><div class="stat-label">This Month's Expenditure</div><div class="stat-value red" style="font-size:1rem;">⏳ Loading…</div></div>
+    <div class="stat-card green"><div class="stat-label">Net Balance</div><div class="stat-value green" style="font-size:1rem;">⏳ Loading…</div></div>
+    <div class="stat-card gold"><div class="stat-label">Records This Month</div><div class="stat-value gold" style="font-size:1rem;">⏳ Loading…</div></div>
+  `;
+  document.getElementById('recent-tbody').innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">⏳ Fetching data from Firebase…</td></tr>';
   const branch = currentBranch.role==='admin' ? null : currentBranch.id;
   const txns   = await getTxns(branch);
+  if(!txns || txns.length === 0){
+    // Check if it's truly empty or an error
+    console.log('No transactions returned for branch:', branch);
+  }
   const thisMonth = new Date().toISOString().slice(0,7);
   const monthTx   = txns.filter(t=>t.date&&t.date.startsWith(thisMonth));
   const totalInc  = monthTx.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
@@ -429,6 +480,51 @@ function getCatClass(t){if(!t)return'other';if(t==='tithe')return'tithe';if(t.st
 function showAlert(id, msg){const el=document.getElementById(id);if(msg)el.textContent='⚠️ '+msg;el.style.display='block';setTimeout(()=>el.style.display='none',5000);}
 window.printPage=function(){window.print();};
 
+// ── MOBILE SIDEBAR TOGGLE ─────────────────────────
+window.toggleSidebar = function(){
+  const sidebar  = document.getElementById('sidebar');
+  const overlay  = document.getElementById('sidebarOverlay');
+  const closeBtn = document.getElementById('sb-close-btn');
+  const isOpen   = sidebar.classList.contains('open');
+  if(isOpen){
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+    document.body.style.overflow = '';
+  } else {
+    sidebar.classList.add('open');
+    overlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    // Show close button only on mobile
+    if(window.innerWidth <= 768) closeBtn.style.display = 'block';
+  }
+};
+
+window.closeSidebar = function(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('show');
+  document.getElementById('sb-close-btn').style.display = 'none';
+  document.body.style.overflow = '';
+};
+
+// Auto-close sidebar when a nav item is clicked on mobile
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.sb-item').forEach(function(item){
+    item.addEventListener('click', function(){
+      if(window.innerWidth <= 768) closeSidebar();
+    });
+  });
+});
+
+// Close sidebar on window resize if desktop
+window.addEventListener('resize', function(){
+  if(window.innerWidth > 768){
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('show');
+    document.getElementById('sb-close-btn').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+});
+
 </script>
 
 <style>
@@ -445,7 +541,8 @@ body{font-family:'Open Sans',sans-serif;background:var(--off);color:var(--text);
 /* LOGIN */
 #login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,var(--purple-dk) 0%,var(--mtn) 60%,#0D0D1A 100%);padding:1rem;position:relative;overflow:hidden;}
 #login-screen::before{content:'';position:absolute;bottom:0;left:0;width:100%;height:40%;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 1440 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolygon points='0,200 300,200 720,30 1140,200 1440,200' fill='rgba(255,255,255,0.03)'/%3E%3C/svg%3E") bottom no-repeat;background-size:cover;pointer-events:none;}
-.login-card{background:var(--white);border-radius:16px;padding:2.8rem 2.2rem;width:100%;max-width:440px;box-shadow:0 32px 80px rgba(0,0,0,.5);position:relative;z-index:1;}
+.login-card{background:var(--white);border-radius:16px;padding:2rem 1.4rem;width:100%;max-width:440px;box-shadow:0 32px 80px rgba(0,0,0,.5);position:relative;z-index:1;}
+@media(max-width:480px){.login-card{border-radius:12px;padding:1.5rem 1.2rem;}.login-emblem{width:56px;height:56px;}}
 .login-header{text-align:center;margin-bottom:2rem;}
 .login-emblem{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--purple-lt));display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;box-shadow:0 8px 24px rgba(91,31,162,.4);}
 .login-header h2{font-family:'Montserrat',sans-serif;font-size:1.15rem;font-weight:800;color:var(--purple-dk);margin-bottom:.2rem;}
@@ -494,14 +591,14 @@ body{font-family:'Open Sans',sans-serif;background:var(--off);color:var(--text);
 
 /* MAIN */
 .main-content{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;}
-.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:.85rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:.85rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.06);gap:.5rem;}
 .topbar-left{display:flex;align-items:center;gap:1rem;}
 .topbar h1{font-family:'Montserrat',sans-serif;font-size:.95rem;font-weight:700;color:var(--mtn);}
 .tb-live{display:flex;align-items:center;gap:.35rem;font-family:'Montserrat',sans-serif;font-size:.65rem;font-weight:700;color:var(--green);letter-spacing:.08em;text-transform:uppercase;}
 .tb-live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 .tb-date{font-size:.75rem;color:var(--muted);font-family:'Montserrat',sans-serif;}
-.page{display:none;padding:2rem;flex:1;}
+.page{display:none;padding:1.5rem 2rem;flex:1;}
 .page.active{display:block;}
 
 /* STAT CARDS */
@@ -559,7 +656,7 @@ tfoot td{border-top:2px solid var(--border);}
 .fg2 input:focus,.fg2 select:focus,.fg2 textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,31,162,.1);background:var(--white);}
 .fg2 textarea{min-height:80px;resize:vertical;}
 .fg2 select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B6680' d='M6 8L0 0h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .9rem center;background-color:var(--off);cursor:pointer;}
-.form-actions{display:flex;gap:1rem;margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border);}
+.form-actions{display:flex;gap:1rem;margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border);flex-wrap:wrap;}
 .btn{font-family:'Montserrat',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.75rem 1.8rem;border-radius:5px;cursor:pointer;border:none;transition:all .2s;}
 .btn:disabled{opacity:.6;cursor:not-allowed;}
 .btn-purple{background:var(--purple);color:#fff;box-shadow:0 4px 12px rgba(91,31,162,.3);}
@@ -576,7 +673,7 @@ tfoot td{border-top:2px solid var(--border);}
 .alert.error{background:#FEF2F2;border:1px solid #FECACA;color:#B91C1C;}
 
 /* FILTER BAR */
-.filter-bar{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:1.2rem;align-items:flex-end;}
+.filter-bar{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:1.2rem;align-items:flex-end;width:100%;}
 .filter-bar .fg2{margin-bottom:0;}
 .filter-bar .fg2 input,.filter-bar .fg2 select{padding:.55rem .8rem;font-size:.83rem;}
 
@@ -608,9 +705,100 @@ tfoot td{border-top:2px solid var(--border);}
 .step-content code{background:var(--purple-bg);color:var(--purple);padding:.1rem .5rem;border-radius:3px;font-size:.78rem;font-family:monospace;display:inline-block;margin:.1rem 0;}
 
 /* RESPONSIVE */
-@media(max-width:1000px){.stat-grid{grid-template-columns:1fr 1fr;}.charts-grid{grid-template-columns:1fr;}.form-grid{grid-template-columns:1fr;}}
-@media(max-width:680px){.sidebar{transform:translateX(-100%);transition:transform .3s;}.sidebar.open{transform:translateX(0);}.main-content{margin-left:0;}.stat-grid{grid-template-columns:1fr 1fr;}}
-@media print{.sidebar,.topbar,.form-actions,.btn,.filter-bar{display:none!important;}.main-content{margin-left:0;}.page.active{display:block!important;}}
+/* ── HAMBURGER BUTTON ────────────────────────────── */
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;border:none;background:none;padding:.4rem;margin-right:.5rem;}
+.hamburger span{display:block;width:22px;height:2px;background:var(--purple);border-radius:2px;transition:all .3s;}
+
+/* ── MOBILE OVERLAY ──────────────────────────────── */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99;}
+.sidebar-overlay.show{display:block;}
+
+/* ── TABLET (≤1000px) ────────────────────────────── */
+@media(max-width:1000px){
+  .stat-grid{grid-template-columns:1fr 1fr;}
+  .charts-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .branch-cards{grid-template-columns:1fr 1fr;}
+}
+
+/* ── MOBILE (≤768px) ─────────────────────────────── */
+@media(max-width:768px){
+  /* Sidebar slides in/out */
+  .sidebar{transform:translateX(-100%);transition:transform .3s ease;box-shadow:4px 0 24px rgba(0,0,0,.3);}
+  .sidebar.open{transform:translateX(0);}
+
+  /* Main fills full width */
+  .main-content{margin-left:0;}
+
+  /* Show hamburger */
+  .hamburger{display:flex;}
+
+  /* Topbar adjustments */
+  .topbar{padding:.75rem 1rem;}
+  .tb-date{display:none;}
+
+  /* Pages */
+  .page{padding:1rem;}
+
+  /* Stats - 1 column on small phones, 2 on larger */
+  .stat-grid{grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.2rem;}
+  .stat-card{padding:1rem;}
+  .stat-value{font-size:1.15rem;}
+  .stat-icon{font-size:1.4rem;}
+
+  /* Charts */
+  .charts-grid{grid-template-columns:1fr;gap:1rem;}
+  .chart-wrap{height:200px;}
+
+  /* Cards */
+  .card{padding:1rem;margin-bottom:1rem;}
+  .card-title{font-size:.8rem;}
+
+  /* Forms */
+  .form-grid{grid-template-columns:1fr;}
+  .form-full{grid-column:1;}
+  .form-actions{flex-direction:column;}
+  .form-actions .btn{width:100%;text-align:center;}
+
+  /* Tables - horizontal scroll */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  table{min-width:480px;}
+  thead th{font-size:.6rem;padding:.6rem .75rem;white-space:nowrap;}
+  tbody td{padding:.6rem .75rem;font-size:.8rem;}
+
+  /* Filter bar */
+  .filter-bar{flex-direction:column;align-items:stretch;}
+  .filter-bar .fg2{width:100%;}
+  .filter-bar .btn{width:100%;}
+
+  /* Sec header */
+  .sec-header{flex-direction:column;gap:.75rem;align-items:flex-start;}
+
+  /* Branch cards */
+  .branch-cards{grid-template-columns:1fr;}
+
+  /* Setup guide */
+  .setup-step{flex-direction:column;gap:.5rem;}
+}
+
+/* ── SMALL PHONES (≤400px) ───────────────────────── */
+@media(max-width:400px){
+  .stat-grid{grid-template-columns:1fr;}
+  .stat-card{padding:.9rem;}
+  .page{padding:.75rem;}
+  .card{padding:.85rem;}
+  .btn{padding:.7rem 1.2rem;font-size:.72rem;}
+  .bc-nums{grid-template-columns:1fr 1fr;}
+}
+
+/* ── PRINT ───────────────────────────────────────── */
+@media print{
+  .sidebar,.topbar,.form-actions,.btn,.filter-bar,.hamburger,.sidebar-overlay{display:none!important;}
+  .main-content{margin-left:0;}
+  .page.active{display:block!important;}
+  .stat-grid{grid-template-columns:1fr 1fr;}
+  .charts-grid{grid-template-columns:1fr 1fr;}
+}
 </style>
 </head>
 <body>
@@ -627,7 +815,7 @@ tfoot td{border-top:2px solid var(--border);}
       </svg>
     </div>
     <h2>MFM Financial Portal</h2>
-    <p>SW58 Regional Hqtrs · Ondo State, Nigeria</p>
+    <p>Akure Regional Office · Ondo State, Nigeria</p>
   </div>
   <div class="security-badge">
     <span>🔒</span>
@@ -644,7 +832,11 @@ tfoot td{border-top:2px solid var(--border);}
   <button class="btn-login" id="loginBtn" onclick="doLogin()">Login to Portal</button>
   <div class="login-err" id="loginErr"></div>
 
-
+  <div class="login-setup">
+    <h4>⚙️ Firebase Setup Required</h4>
+    <p>This portal requires a Firebase project to store data in real time across all branches. Follow the setup guide inside the portal after configuring your Firebase credentials in the HTML file.</p>
+    <p style="margin-top:.5rem;">Branch emails follow the pattern: <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="29415869444f44485b485b46444007465b4e">[email&#160;protected]</a></code>, <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7a15111f13101f180f3a171c171b081b081517135415081d">[email&#160;protected]</a></code>, etc.</p>
+  </div>
 </div>
 </div>
 
@@ -655,15 +847,18 @@ tfoot td{border-top:2px solid var(--border);}
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sb-brand">
-      <div class="sb-logo">
-        <div class="sb-circle">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="sb-logo">
+          <div class="sb-circle">
           <svg width="22" height="18" viewBox="0 0 34 26" fill="none">
             <polygon points="17,2 28,22 6,22" fill="none" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
             <polygon points="8,22 15,10 22,22" fill="white" opacity="0.8"/>
             <line x1="4" y1="22" x2="30" y2="22" stroke="white" stroke-width="2.5"/>
           </svg>
         </div>
-        <div class="sb-logo-text">MFM Financial<br>Portal</div>
+          <div class="sb-logo-text">MFM Financial<br>Portal</div>
+        </div>
+        <button onclick="closeSidebar()" style="display:none;background:none;border:none;color:rgba(255,255,255,.6);font-size:1.4rem;cursor:pointer;padding:.2rem .4rem;line-height:1;" id="sb-close-btn">✕</button>
       </div>
       <div class="sb-branch-box">
         <strong id="sb-branch-name">Loading…</strong>
@@ -697,8 +892,14 @@ tfoot td{border-top:2px solid var(--border);}
 
   <!-- MAIN -->
   <div class="main-content">
+    <!-- Mobile sidebar overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
     <div class="topbar">
       <div class="topbar-left">
+        <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Open menu">
+          <span></span><span></span><span></span>
+        </button>
         <h1 id="page-title">Dashboard</h1>
         <div class="tb-live"><div class="tb-live-dot"></div>Live</div>
       </div>
@@ -908,30 +1109,13 @@ tfoot td{border-top:2px solid var(--border);}
         </div></div>
         <div class="setup-step"><div class="step-num">6</div><div class="step-content"><h4>Enable Firebase Authentication</h4><p>In Firebase Console → "Authentication" → "Get started" → "Email/Password" → Enable it → Save.</p></div></div>
         <div class="setup-step"><div class="step-num">7</div><div class="step-content"><h4>Create User Accounts for Each Branch</h4><p>In Firebase Authentication → "Add user" → Create one account per branch using these emails (set your own passwords):</p>
-          <code>hq@mfmararomi.org</code>
-          <code>okeijebu@mfmararomi.org</code>
-          <code>ijoka@mfmararomi.org</code>
-          <code>shagari@mfmararomi.org</code>
-          <code>aswani@mfmararomi.org</code>
-          <code>obaile@mfmararomi.org</code>
-          <code>ijapo@mfmararomi.org</code>
-          <code>admin@mfmararomi.org</code>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="721a03321f141f130013001d1f1b5c1d0015">[email&#160;protected]</a></code>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="751a1e101c1f10170035181318140714071a181c5b1a0712">[email&#160;protected]</a></code>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="9cf5f6f3f7fddcf1faf1fdeefdeef3f1f5b2f3eefb">[email&#160;protected]</a></code>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="681b00090f091a0128050e05091a091a07050146071a0f">[email&#160;protected]</a></code>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="81e0f2f6e0efe8c1ece7ece0f3e0f3eeece8afeef3e6">[email&#160;protected]</a></code>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="18777a7971747d58757e75796a796a77757136776a7f">[email&#160;protected]</a></code>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7b12111a0b143b161d161a091a091416125514091c">[email&#160;protected]</a></code>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="056461686c6b45686368647764776a686c2b6a7762">[email&#160;protected]</a></code>
         </div></div>
-        <div class="setup-step"><div class="step-num">8</div><div class="step-content"><h4>Upload to Your Host &amp; Test</h4><p>Upload <code>mfm-financial-portal.html</code> to your web host (QServers, Hostinger, WhoGoHost etc.) → Log in from two different devices using two different branch accounts → Enter a record on one device → It should appear on the other device's dashboard within seconds.</p></div></div>
-        <div class="setup-step"><div class="step-num">9</div><div class="step-content"><h4>Customise Branch Emails (Optional)</h4><p>You can change the branch email addresses in the <code>BRANCHES</code> object at the top of the JavaScript code. Just ensure the emails match exactly what you created in Firebase Authentication.</p></div></div>
-      </div>
-      <div class="card" style="border-left:4px solid var(--green);">
-        <div class="card-title">✅ Firebase Free Tier Limits (More Than Enough)</div>
-        <p style="font-size:.85rem;color:var(--muted);line-height:1.8;">
-          Firebase's free Spark plan includes: <strong>1GB Firestore storage</strong> · <strong>50,000 reads/day</strong> · <strong>20,000 writes/day</strong> · <strong>Unlimited Authentication</strong><br>
-          For a 7-branch church portal recording hundreds of transactions per month, you will <strong>never exceed the free tier</strong>.
-        </p>
-      </div>
-    </div>
-
-  </div><!-- /main-content -->
-</div><!-- /app-layout -->
-</div><!-- /app -->
-
-</body>
-</html>
+        <div class="setup-step"><div class="step-num">8</div><div class="step-content"><h4>Upload to Your Host &amp; Test</h4><p>Upload <code>mfm-financial-portal.html</code> to your web host (QServers, Hostinger, WhoGoHost etc.) → Log in from two differ
