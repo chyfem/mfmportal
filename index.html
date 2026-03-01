@@ -2,906 +2,421 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>MFM Financial Portal – Akure Region</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-
-<!-- ══ FIREBASE SDK ══════════════════════════════ -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
-        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc,
-         query, orderBy, serverTimestamp }
-        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-// ══════════════════════════════════════════════════
-//  🔥 FIREBASE CONFIGURATION
-//  Replace the values below with your own Firebase
-//  project credentials from console.firebase.google.com
-// ══════════════════════════════════════════════════
-const firebaseConfig = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID"
-};
-
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
-
-// ══ BRANCH CONFIG ════════════════════════════════
-const BRANCHES = {
-  "hq@mfmararomi.org":      { id:"HQ", name:"Regional HQ — SW 58 Araromi", short:"Main Assembly",  role:"accountant" },
-  "okeijebu@mfmararomi.org":{ id:"B1", name:"MFM Oke-Ijebu Assembly",       short:"Oke-Ijebu",      role:"accountant" },
-  "ijoka@mfmararomi.org":   { id:"B2", name:"MFM Ijoka Assembly",            short:"Ijoka",          role:"accountant" },
-  "shagari@mfmararomi.org": { id:"B3", name:"MFM Shagari Assembly",          short:"Shagari",        role:"accountant" },
-  "aswani@mfmararomi.org":  { id:"B4", name:"MFM Aswani Assembly",           short:"Aswani",         role:"accountant" },
-  "obaile@mfmararomi.org":  { id:"B5", name:"MFM Oba-Ile Assembly",          short:"Oba-Ile",        role:"accountant" },
-  "ijapo@mfmararomi.org":   { id:"B6", name:"MFM Ijapo Assembly",            short:"Ijapo",          role:"accountant" },
-  "admin@mfmararomi.org":   { id:"ADMIN", name:"Regional Administrator",     short:"All Branches",   role:"admin" },
-};
-
-const ALL_BRANCH_IDS = ["HQ","B1","B2","B3","B4","B5","B6"];
-const BRANCH_BY_ID   = Object.fromEntries(Object.values(BRANCHES).map(b=>[b.id,b]));
-
-let currentUser   = null;
-let currentBranch = null;
-let unsubscribe   = null;
-let barChartInst=null, doughnutInst=null, rLineInst=null, rPieInst=null;
-
-// ══ AUTH STATE ════════════════════════════════════
-onAuthStateChanged(auth, async user => {
-  if(user){
-    const bInfo = BRANCHES[user.email];
-    if(!bInfo){ await signOut(auth); showLoginErr("Account not recognised."); return; }
-    currentUser   = user;
-    currentBranch = bInfo;
-    startApp();
-  } else {
-    currentUser = null; currentBranch = null;
-    document.getElementById('app').style.display='none';
-    document.getElementById('login-screen').style.display='flex';
-  }
-});
-
-// ══ LOGIN ═════════════════════════════════════════
-window.doLogin = async function(){
-  const email = document.getElementById('loginEmail').value.trim();
-  const pass  = document.getElementById('loginPass').value;
-  const btn   = document.getElementById('loginBtn');
-  if(!email||!pass){ showLoginErr("Please enter email and password."); return; }
-  btn.textContent="Signing in…"; btn.disabled=true;
-  try {
-    await signInWithEmailAndPassword(auth, email, pass);
-  } catch(e){
-    showLoginErr("Invalid email or password. Please try again.");
-    btn.textContent="Login to Portal"; btn.disabled=false;
-  }
-};
-
-window.doLogout = async function(){
-  if(unsubscribe) unsubscribe();
-  await signOut(auth);
-};
-
-function showLoginErr(msg){
-  const el=document.getElementById('loginErr');
-  el.textContent=msg; el.style.display='block';
-}
-
-// ══ APP INIT ══════════════════════════════════════
-function startApp(){
-  document.getElementById('login-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  const b = currentBranch;
-  document.getElementById('sb-branch-name').textContent = b.name;
-  document.getElementById('sb-branch-loc').textContent  = b.short;
-  document.getElementById('sb-user-name').textContent   = currentUser.email.split('@')[0].toUpperCase();
-  document.getElementById('sb-user-role').textContent   = b.role==='admin'?'Regional Administrator':'Branch Accountant';
-  document.getElementById('tb-date').textContent = new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long',year:'numeric'});
-  const today = new Date().toISOString().split('T')[0];
-  const monthNow = today.slice(0,7);
-  ['i-date','e-date'].forEach(id=>document.getElementById(id).value=today);
-  ['r-month','reg-month'].forEach(id=>document.getElementById(id).value=monthNow);
-  document.getElementById('income-month-label').textContent = new Date().toLocaleString('default',{month:'long',year:'numeric'});
-  document.getElementById('exp-month-label').textContent    = new Date().toLocaleString('default',{month:'long',year:'numeric'});
-  if(b.role==='admin') document.getElementById('sb-regional').style.display='flex';
-  // Test Firestore connection
-  testFirestoreConnection();
-  loadDashboard();
-}
-
-async function testFirestoreConnection(){
-  try {
-    const testCol = collection(db,'transactions');
-    await getDocs(testCol);
-    // Connection OK - show green dot
-    document.querySelector('.tb-live-dot').style.background='var(--green)';
-    document.querySelector('.tb-live').style.color='var(--green)';
-    console.log('✅ Firestore connected successfully');
-  } catch(e){
-    // Connection failed - show red dot and alert
-    document.querySelector('.tb-live-dot').style.background='var(--red)';
-    document.querySelector('.tb-live').style.color='var(--red)';
-    document.querySelector('.tb-live').innerHTML='<div class="tb-live-dot" style="background:var(--red)"></div>Offline';
-    console.error('❌ Firestore connection failed:', e.code, e.message);
-    // Show banner
-    const banner = document.createElement('div');
-    banner.style.cssText='background:#FEF2F2;border-bottom:2px solid #FECACA;padding:.75rem 2rem;font-family:Montserrat,sans-serif;font-size:.8rem;color:#B91C1C;font-weight:600;';
-    banner.innerHTML = '⚠️ Firebase connection error: <strong>' + (e.code||e.message) + '</strong> — Check your Firebase credentials and Firestore rules.';
-    document.querySelector('.main-content').prepend(banner);
-  }
-}
-
-// ══ NAVIGATION ════════════════════════════════════
-window.showPage = async function(id, btn){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-  if(btn) btn.classList.add('active');
-  const titles={dashboard:'Dashboard',income:'Record Income',expenditure:'Record Expenditure',transactions:'All Transactions',reports:'Branch Financial Report',regional:'Regional Overview'};
-  document.getElementById('page-title').textContent=titles[id]||id;
-  if(id==='dashboard')    loadDashboard();
-  if(id==='income')       loadIncomeList();
-  if(id==='expenditure')  loadExpList();
-  if(id==='transactions') loadAllTx();
-  if(id==='reports')      buildReport();
-  if(id==='regional')     buildRegional();
-};
-
-// ══ FIRESTORE HELPERS ═════════════════════════════
-async function getTxns(branchId){
-  try {
-    const col  = collection(db,'transactions');
-    const snap = await getDocs(col);
-    let docs   = snap.docs.map(d=>({id:d.id,...d.data()}));
-    if(branchId && branchId!=='ADMIN'){
-      docs = docs.filter(t=>t.branch===branchId);
-    }
-    docs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-    return docs;
-  } catch(e){
-    console.error('Firestore read error:',e);
-    return [];
-  }
-}
-
-async function addTxn(data){
-  try {
-    await addDoc(collection(db,'transactions'),{...data, createdAt:serverTimestamp()});
-    return true;
-  } catch(e){
-    console.error('addTxn error:',e);
-    throw e;
-  }
-}
-
-async function deleteTxn(id){
-  try {
-    await deleteDoc(doc(db,'transactions',id));
-    return true;
-  } catch(e){
-    console.error('deleteTxn error:',e);
-    throw e;
-  }
-}
-
-// ══ DASHBOARD ═════════════════════════════════════
-async function loadDashboard(){
-  // Show loading state
-  document.getElementById('stat-grid').innerHTML=`
-    <div class="stat-card purple"><div class="stat-label">This Month's Income</div><div class="stat-value purple" style="font-size:1rem;">⏳ Loading…</div></div>
-    <div class="stat-card red"><div class="stat-label">This Month's Expenditure</div><div class="stat-value red" style="font-size:1rem;">⏳ Loading…</div></div>
-    <div class="stat-card green"><div class="stat-label">Net Balance</div><div class="stat-value green" style="font-size:1rem;">⏳ Loading…</div></div>
-    <div class="stat-card gold"><div class="stat-label">Records This Month</div><div class="stat-value gold" style="font-size:1rem;">⏳ Loading…</div></div>
-  `;
-  document.getElementById('recent-tbody').innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">⏳ Fetching data from Firebase…</td></tr>';
-  const branch = currentBranch.role==='admin' ? null : currentBranch.id;
-  const txns   = await getTxns(branch);
-  if(!txns || txns.length === 0){
-    // Check if it's truly empty or an error
-    console.log('No transactions returned for branch:', branch);
-  }
-  const thisMonth = new Date().toISOString().slice(0,7);
-  const monthTx   = txns.filter(t=>t.date&&t.date.startsWith(thisMonth));
-  const totalInc  = monthTx.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
-  const totalExp  = monthTx.filter(t=>t.flow==='expenditure').reduce((s,t)=>s+Number(t.amount),0);
-  const net       = totalInc-totalExp;
-
-  document.getElementById('stat-grid').innerHTML=`
-    <div class="stat-card purple"><div class="stat-icon">💰</div><div class="stat-label">This Month's Income</div><div class="stat-value purple">₦${fmt(totalInc)}</div><div class="stat-sub">All income types</div></div>
-    <div class="stat-card red"><div class="stat-icon">💸</div><div class="stat-label">This Month's Expenditure</div><div class="stat-value red">₦${fmt(totalExp)}</div><div class="stat-sub">All expense types</div></div>
-    <div class="stat-card ${net>=0?'green':'red'}"><div class="stat-icon">${net>=0?'✅':'⚠️'}</div><div class="stat-label">Net Balance (Month)</div><div class="stat-value ${net>=0?'green':'red'}">₦${fmt(net)}</div><div class="stat-sub">${net>=0?'Surplus':'Deficit'}</div></div>
-    <div class="stat-card gold"><div class="stat-icon">📋</div><div class="stat-label">Records This Month</div><div class="stat-value gold">${monthTx.length}</div><div class="stat-sub">Total entries</div></div>
-  `;
-
-  // Bar chart - last 6 months
-  const months = getLast6Months();
-  const barInc = months.map(m=>txns.filter(t=>t.flow==='income'&&t.date&&t.date.startsWith(m)).reduce((s,t)=>s+Number(t.amount),0));
-  const barExp = months.map(m=>txns.filter(t=>t.flow==='expenditure'&&t.date&&t.date.startsWith(m)).reduce((s,t)=>s+Number(t.amount),0));
-  const barLabels = months.map(m=>{const[y,mo]=m.split('-');return new Date(y,mo-1).toLocaleString('default',{month:'short',year:'2-digit'});});
-  destroyChart(barChartInst);
-  barChartInst=new Chart(document.getElementById('barChart'),{type:'bar',data:{labels:barLabels,datasets:[
-    {label:'Income',data:barInc,backgroundColor:'rgba(91,31,162,.75)',borderColor:'#5B1FA2',borderWidth:1.5,borderRadius:4},
-    {label:'Expenditure',data:barExp,backgroundColor:'rgba(204,0,0,.65)',borderColor:'#CC0000',borderWidth:1.5,borderRadius:4}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{family:'Montserrat',size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'₦'+fmtShort(v),font:{family:'Montserrat',size:10}},grid:{color:'rgba(0,0,0,.06)'}},x:{ticks:{font:{family:'Montserrat',size:10}}}}}});
-
-  // Doughnut
-  const cats={tithe:0,offering:0,donation:0,vow:0,thanksgiving:0,other:0};
-  monthTx.filter(t=>t.flow==='income').forEach(t=>{
-    if(t.type==='tithe') cats.tithe+=Number(t.amount);
-    else if(t.type&&t.type.startsWith('offering')) cats.offering+=Number(t.amount);
-    else if(t.type==='donation') cats.donation+=Number(t.amount);
-    else if(t.type==='vow') cats.vow+=Number(t.amount);
-    else if(t.type==='thanksgiving') cats.thanksgiving+=Number(t.amount);
-    else cats.other+=Number(t.amount);
-  });
-  destroyChart(doughnutInst);
-  doughnutInst=new Chart(document.getElementById('doughnutChart'),{type:'doughnut',data:{
-    labels:['Tithe','Offering','Donation','Vow','Thanksgiving','Other'],
-    datasets:[{data:Object.values(cats),backgroundColor:['#5B1FA2','#C9940A','#2563EB','#EC4899','#16A34A','#9CA3AF'],borderWidth:2,borderColor:'#fff'}]
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Montserrat',size:10},boxWidth:12,padding:10}}}}});
-
-  // Recent
-  const recent = txns.slice(0,12);
-  document.getElementById('recent-tbody').innerHTML = recent.length ? recent.map(t=>`<tr>
-    <td>${t.date||'—'}</td>
-    <td style="font-size:.75rem;font-family:'Montserrat',sans-serif;font-weight:600;color:var(--purple);">${BRANCH_BY_ID[t.branch]?.short||t.branch}</td>
-    <td><span class="badge ${t.flow}">${t.flow==='income'?'Income':'Expenditure'}</span></td>
-    <td><span class="badge ${getCatClass(t.type)}">${fmtType(t.type)}</span></td>
-    <td>${t.desc||'—'}</td>
-    <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:${t.flow==='income'?'var(--green)':'var(--red)'};">${t.flow==='income'?'+':'-'}₦${fmt(Number(t.amount))}</td>
-  </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">No transactions yet. Start by recording income or expenditure.</td></tr>';
-}
-
-// ══ INCOME ════════════════════════════════════════
-window.saveIncome = async function(){
-  const date=document.getElementById('i-date').value;
-  const type=document.getElementById('i-type').value;
-  const amount=parseFloat(document.getElementById('i-amount').value);
-  if(!date||!type||!amount||amount<=0){ showAlert('income-err'); return; }
-  const btn=document.getElementById('income-save-btn');
-  btn.textContent='Saving…'; btn.disabled=true;
-  try {
-    await addTxn({
-      branch:currentBranch.id, flow:'income', type, amount,
-      date, receiver:document.getElementById('i-receiver').value||'',
-      event:document.getElementById('i-event').value||'',
-      receipt:document.getElementById('i-receipt').value||'',
-      desc:document.getElementById('i-desc').value||'',
-      enteredBy:currentUser.email
-    });
-    showAlert('income-ok'); clearIncome(); loadIncomeList();
-  } catch(e){ showAlert('income-err','Failed to save. Check connection.'); }
-  btn.textContent='💾 Save Income Record'; btn.disabled=false;
-};
-
-async function loadIncomeList(){
-  const thisMonth=new Date().toISOString().slice(0,7);
-  const txns=await getTxns(currentBranch.id);
-  const monthInc=txns.filter(t=>t.flow==='income'&&t.date&&t.date.startsWith(thisMonth));
-  document.getElementById('income-tbody').innerHTML=monthInc.length?monthInc.map(t=>`<tr>
-    <td>${t.date}</td>
-    <td><span class="badge ${getCatClass(t.type)}">${fmtType(t.type)}</span></td>
-    <td>${t.event||'—'}</td>
-    <td>${t.receiver||'—'}</td>
-    <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:var(--green);">₦${fmt(Number(t.amount))}</td>
-    <td><button class="btn btn-ghost btn-sm" onclick="deleteRecord('${t.id}','income')">🗑️</button></td>
-  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">No income records this month</td></tr>';
-  document.getElementById('income-total').textContent=fmt(monthInc.reduce((s,t)=>s+Number(t.amount),0));
-}
-
-window.clearIncome = function(){
-  ['i-type','i-amount','i-receiver','i-event','i-receipt','i-desc'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('i-date').value=new Date().toISOString().split('T')[0];
-};
-
-// ══ EXPENDITURE ═══════════════════════════════════
-window.saveExpenditure = async function(){
-  const date=document.getElementById('e-date').value;
-  const type=document.getElementById('e-type').value;
-  const amount=parseFloat(document.getElementById('e-amount').value);
-  if(!date||!type||!amount||amount<=0){ showAlert('exp-err'); return; }
-  const btn=document.getElementById('exp-save-btn');
-  btn.textContent='Saving…'; btn.disabled=true;
-  try {
-    await addTxn({
-      branch:currentBranch.id, flow:'expenditure', type, amount,
-      date, beneficiary:document.getElementById('e-beneficiary').value||'',
-      approved:document.getElementById('e-approved').value||'',
-      voucher:document.getElementById('e-voucher').value||'',
-      desc:document.getElementById('e-desc').value||'',
-      enteredBy:currentUser.email
-    });
-    showAlert('exp-ok'); clearExpenditure(); loadExpList();
-  } catch(e){ showAlert('exp-err','Failed to save. Check connection.'); }
-  btn.textContent='💾 Save Expenditure Record'; btn.disabled=false;
-};
-
-async function loadExpList(){
-  const thisMonth=new Date().toISOString().slice(0,7);
-  const txns=await getTxns(currentBranch.id);
-  const monthExp=txns.filter(t=>t.flow==='expenditure'&&t.date&&t.date.startsWith(thisMonth));
-  document.getElementById('exp-tbody').innerHTML=monthExp.length?monthExp.map(t=>`<tr>
-    <td>${t.date}</td>
-    <td><span class="badge ${getCatClass(t.type)}">${fmtType(t.type)}</span></td>
-    <td>${t.beneficiary||'—'}</td>
-    <td>${t.approved||'—'}</td>
-    <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:var(--red);">₦${fmt(Number(t.amount))}</td>
-    <td><button class="btn btn-ghost btn-sm" onclick="deleteRecord('${t.id}','exp')">🗑️</button></td>
-  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">No expenditure records this month</td></tr>';
-  document.getElementById('exp-total').textContent=fmt(monthExp.reduce((s,t)=>s+Number(t.amount),0));
-}
-
-window.clearExpenditure = function(){
-  ['e-type','e-amount','e-beneficiary','e-approved','e-voucher','e-desc'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('e-date').value=new Date().toISOString().split('T')[0];
-};
-
-// ══ ALL TRANSACTIONS ══════════════════════════════
-window.loadAllTx = async function(filter={}){
-  const branch = currentBranch.role==='admin'?null:currentBranch.id;
-  let txns = await getTxns(branch);
-  if(filter.from) txns=txns.filter(t=>t.date>=filter.from);
-  if(filter.to)   txns=txns.filter(t=>t.date<=filter.to);
-  if(filter.type) txns=txns.filter(t=>t.flow===filter.type);
-  if(filter.branch && filter.branch!=='ALL') txns=txns.filter(t=>t.branch===filter.branch);
-  txns.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  document.getElementById('tx-tbody').innerHTML=txns.length?txns.map(t=>`<tr>
-    <td>${t.date||'—'}</td>
-    ${currentBranch.role==='admin'?`<td style="font-size:.75rem;font-family:'Montserrat',sans-serif;font-weight:600;color:var(--purple);">${BRANCH_BY_ID[t.branch]?.short||t.branch}</td>`:''}
-    <td><span class="badge ${t.flow}">${t.flow==='income'?'Income':'Expenditure'}</span></td>
-    <td><span class="badge ${getCatClass(t.type)}">${fmtType(t.type)}</span></td>
-    <td>${t.desc||'—'}</td>
-    <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:${t.flow==='income'?'var(--green)':'var(--red)'};">${t.flow==='income'?'+':'-'}₦${fmt(Number(t.amount))}</td>
-  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">No transactions found</td></tr>';
-  const incSum=txns.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
-  const expSum=txns.filter(t=>t.flow==='expenditure').reduce((s,t)=>s+Number(t.amount),0);
-  document.getElementById('tx-inc-total').textContent=fmt(incSum);
-  document.getElementById('tx-exp-total').textContent=fmt(expSum);
-  document.getElementById('tx-net').textContent=fmt(incSum-expSum);
-  document.getElementById('tx-net').style.color=(incSum-expSum)>=0?'var(--green)':'var(--red)';
-};
-
-window.filterTx = function(){
-  loadAllTx({from:document.getElementById('f-from').value,to:document.getElementById('f-to').value,type:document.getElementById('f-type').value,branch:document.getElementById('f-branch')?.value});
-};
-window.clearFilter = function(){
-  ['f-from','f-to','f-type'].forEach(id=>document.getElementById(id).value='');
-  const fb=document.getElementById('f-branch'); if(fb) fb.value='ALL';
-  loadAllTx();
-};
-
-// ══ REPORTS ═══════════════════════════════════════
-window.buildReport = async function(){
-  const month=document.getElementById('r-month').value||new Date().toISOString().slice(0,7);
-  const branch=currentBranch.role==='admin'?null:currentBranch.id;
-  const txns=await getTxns(branch);
-  const mTxns=txns.filter(t=>t.date&&t.date.startsWith(month));
-  const incR=mTxns.filter(t=>t.flow==='income');
-  const expR=mTxns.filter(t=>t.flow==='expenditure');
-  const totalI=incR.reduce((s,t)=>s+Number(t.amount),0);
-  const totalE=expR.reduce((s,t)=>s+Number(t.amount),0);
-  const net=totalI-totalE;
-  document.getElementById('report-stats').innerHTML=`
-    <div class="stat-card purple"><div class="stat-icon">💰</div><div class="stat-label">Total Income</div><div class="stat-value purple">₦${fmt(totalI)}</div></div>
-    <div class="stat-card red"><div class="stat-icon">💸</div><div class="stat-label">Total Expenditure</div><div class="stat-value red">₦${fmt(totalE)}</div></div>
-    <div class="stat-card ${net>=0?'green':'red'}"><div class="stat-icon">${net>=0?'📈':'📉'}</div><div class="stat-label">Net Balance</div><div class="stat-value ${net>=0?'green':'red'}">₦${fmt(net)}</div></div>
-    <div class="stat-card gold"><div class="stat-icon">📑</div><div class="stat-label">Total Records</div><div class="stat-value gold">${mTxns.length}</div></div>
-  `;
-  // Weekly line chart
-  const weeks=['Week 1','Week 2','Week 3','Week 4'];
-  const wI=[0,0,0,0]; const wE=[0,0,0,0];
-  incR.forEach(t=>{const d=new Date(t.date).getDate();const w=Math.min(Math.floor((d-1)/7),3);wI[w]+=Number(t.amount);});
-  expR.forEach(t=>{const d=new Date(t.date).getDate();const w=Math.min(Math.floor((d-1)/7),3);wE[w]+=Number(t.amount);});
-  destroyChart(rLineInst);
-  rLineInst=new Chart(document.getElementById('rLineChart'),{type:'line',data:{labels:weeks,datasets:[
-    {label:'Income',data:wI,borderColor:'#5B1FA2',backgroundColor:'rgba(91,31,162,.12)',fill:true,tension:.4,pointRadius:5,pointBackgroundColor:'#5B1FA2'},
-    {label:'Expenditure',data:wE,borderColor:'#CC0000',backgroundColor:'rgba(204,0,0,.08)',fill:true,tension:.4,pointRadius:5,pointBackgroundColor:'#CC0000'}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'Montserrat',size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'₦'+fmtShort(v),font:{family:'Montserrat',size:10}}}}}});
-  // Exp pie
-  const expCats={};
-  expR.forEach(t=>{const k=fmtType(t.type);expCats[k]=(expCats[k]||0)+Number(t.amount);});
-  const pieCols=['#CC0000','#5B1FA2','#C9940A','#16A34A','#2563EB','#EC4899','#6B6680','#D97706'];
-  destroyChart(rPieInst);
-  if(Object.keys(expCats).length){
-    rPieInst=new Chart(document.getElementById('rPieChart'),{type:'pie',data:{labels:Object.keys(expCats),datasets:[{data:Object.values(expCats),backgroundColor:pieCols,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Montserrat',size:10},boxWidth:12,padding:8}}}}});
-  }
-  // Tables
-  document.getElementById('r-income-tbody').innerHTML=incR.map(t=>`<tr><td>${t.date}</td><td><span class="badge ${getCatClass(t.type)}">${fmtType(t.type)}</span></td><td>${t.event||'—'}</td><td>${t.receiver||'—'}</td><td style="font-weight:700;color:var(--green);font-family:'Montserrat',sans-serif;">₦${fmt(Number(t.amount))}</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;">No income records for this period</td></tr>';
-  document.getElementById('r-inc-sum').textContent=fmt(totalI);
-  document.getElementById('r-exp-tbody').innerHTML=expR.map(t=>`<tr><td>${t.date}</td><td><span class="badge ${getCatClass(t.type)}">${fmtType(t.type)}</span></td><td>${t.beneficiary||'—'}</td><td>${t.approved||'—'}</td><td style="font-weight:700;color:var(--red);font-family:'Montserrat',sans-serif;">₦${fmt(Number(t.amount))}</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;">No expenditure records for this period</td></tr>';
-  document.getElementById('r-exp-sum').textContent=fmt(totalE);
-};
-
-// ══ REGIONAL ══════════════════════════════════════
-window.buildRegional = async function(){
-  const month=document.getElementById('reg-month').value||new Date().toISOString().slice(0,7);
-  const all=await getTxns(null);
-  const mAll=all.filter(t=>t.date&&t.date.startsWith(month));
-  const totalI=mAll.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
-  const totalE=mAll.filter(t=>t.flow==='expenditure').reduce((s,t)=>s+Number(t.amount),0);
-  const net=totalI-totalE;
-  document.getElementById('reg-stats').innerHTML=`
-    <div class="stat-card purple"><div class="stat-icon">💰</div><div class="stat-label">Regional Income</div><div class="stat-value purple">₦${fmt(totalI)}</div><div class="stat-sub">All branches combined</div></div>
-    <div class="stat-card red"><div class="stat-icon">💸</div><div class="stat-label">Regional Expenditure</div><div class="stat-value red">₦${fmt(totalE)}</div><div class="stat-sub">All branches combined</div></div>
-    <div class="stat-card ${net>=0?'green':'red'}"><div class="stat-icon">${net>=0?'✅':'⚠️'}</div><div class="stat-label">Regional Net Balance</div><div class="stat-value ${net>=0?'green':'red'}">₦${fmt(net)}</div></div>
-    <div class="stat-card gold"><div class="stat-icon">🏛️</div><div class="stat-label">Active Branches</div><div class="stat-value gold">7</div><div class="stat-sub">Akure Region</div></div>
-  `;
-  document.getElementById('branch-cards').innerHTML=ALL_BRANCH_IDS.map(bk=>{
-    const bTxns=mAll.filter(t=>t.branch===bk);
-    const bInc=bTxns.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
-    const bExp=bTxns.filter(t=>t.flow==='expenditure').reduce((s,t)=>s+Number(t.amount),0);
-    return `<div class="branch-card">
-      <div class="bc-name">${BRANCH_BY_ID[bk]?.name||bk}</div>
-      <div class="bc-loc">${BRANCH_BY_ID[bk]?.short||''}</div>
-      <div class="bc-nums">
-        <div class="bc-num"><div class="n-lbl">Income</div><div class="n-val inc">₦${fmt(bInc)}</div></div>
-        <div class="bc-num"><div class="n-lbl">Expenditure</div><div class="n-val exp">₦${fmt(bExp)}</div></div>
-        <div class="bc-num"><div class="n-lbl">Net</div><div class="n-val ${(bInc-bExp)>=0?'inc':'exp'}">₦${fmt(bInc-bExp)}</div></div>
-        <div class="bc-num"><div class="n-lbl">Records</div><div class="n-val" style="color:var(--purple);">${bTxns.length}</div></div>
-      </div>
-    </div>`;
-  }).join('');
-  const sorted=[...mAll].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  document.getElementById('reg-tx-tbody').innerHTML=sorted.length?sorted.map(t=>`<tr>
-    <td>${t.date||'—'}</td>
-    <td style="font-size:.75rem;font-family:'Montserrat',sans-serif;font-weight:600;color:var(--purple);">${BRANCH_BY_ID[t.branch]?.short||t.branch}</td>
-    <td><span class="badge ${t.flow}">${t.flow==='income'?'Income':'Expenditure'}</span></td>
-    <td><span class="badge ${getCatClass(t.type)}">${fmtType(t.type)}</span></td>
-    <td>${t.desc||'—'}</td>
-    <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:${t.flow==='income'?'var(--green)':'var(--red)'};">${t.flow==='income'?'+':'-'}₦${fmt(Number(t.amount))}</td>
-  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">No records for this period</td></tr>';
-};
-
-// ══ DELETE ════════════════════════════════════════
-window.deleteRecord = async function(id, page){
-  if(!confirm('Delete this record permanently? This cannot be undone.')) return;
-  try {
-    await deleteTxn(id);
-    if(page==='income') loadIncomeList();
-    if(page==='exp')    loadExpList();
-  } catch(e){ alert('Failed to delete. Check your connection.'); }
-};
-
-// ══ UTILITIES ═════════════════════════════════════
-function fmt(n){return Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function fmtShort(n){if(n>=1000000)return(n/1000000).toFixed(1)+'M';if(n>=1000)return(n/1000).toFixed(0)+'K';return n;}
-function destroyChart(c){if(c)c.destroy();}
-function getLast6Months(){const m=[];const now=new Date();for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);m.push(d.toISOString().slice(0,7));}return m;}
-const TYPE_MAP={tithe:'Tithe',offering:'Sunday Offering','offering-mid':'Midweek Offering',donation:'Donation',vow:'Vow/Pledge',thanksgiving:'Thanksgiving',harvest:'Harvest',project:'Project Offering','other':'Other Income','remittance-hq':'HQ Remittance','remittance-region':'Region Remittance','remittance-province':'Province Remittance',salary:'Salary',allowance:'Allowance',honorarium:'Honorarium',electricity:'Electricity/Utility',maintenance:'Maintenance',stationery:'Stationery',transport:'Transport',welfare:'Welfare',evangelism:'Evangelism',program:'Programme Exp.','other-exp':'Other Expense'};
-function fmtType(t){return TYPE_MAP[t]||t||'—';}
-function getCatClass(t){if(!t)return'other';if(t==='tithe')return'tithe';if(t.startsWith('offering'))return'offering';if(t==='donation')return'donation';if(t==='vow')return'vow';if(t.startsWith('remittance'))return'remittance';if(t==='salary'||t==='allowance'||t==='honorarium')return'salary';if(['electricity','maintenance','stationery','transport','program'].includes(t))return'running';if(['welfare','evangelism'].includes(t))return'allowance';return'other';}
-function showAlert(id, msg){const el=document.getElementById(id);if(msg)el.textContent='⚠️ '+msg;el.style.display='block';setTimeout(()=>el.style.display='none',5000);}
-window.printPage=function(){window.print();};
-
-// ── MOBILE SIDEBAR TOGGLE ─────────────────────────
-window.toggleSidebar = function(){
-  const sidebar  = document.getElementById('sidebar');
-  const overlay  = document.getElementById('sidebarOverlay');
-  const closeBtn = document.getElementById('sb-close-btn');
-  const isOpen   = sidebar.classList.contains('open');
-  if(isOpen){
-    sidebar.classList.remove('open');
-    overlay.classList.remove('show');
-    document.body.style.overflow = '';
-  } else {
-    sidebar.classList.add('open');
-    overlay.classList.add('show');
-    document.body.style.overflow = 'hidden';
-    // Show close button only on mobile
-    if(window.innerWidth <= 768) closeBtn.style.display = 'block';
-  }
-};
-
-window.closeSidebar = function(){
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebarOverlay').classList.remove('show');
-  document.getElementById('sb-close-btn').style.display = 'none';
-  document.body.style.overflow = '';
-};
-
-// Auto-close sidebar when a nav item is clicked on mobile
-document.addEventListener('DOMContentLoaded', function(){
-  document.querySelectorAll('.sb-item').forEach(function(item){
-    item.addEventListener('click', function(){
-      if(window.innerWidth <= 768) closeSidebar();
-    });
-  });
-});
-
-// Close sidebar on window resize if desktop
-window.addEventListener('resize', function(){
-  if(window.innerWidth > 768){
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('sidebarOverlay').classList.remove('show');
-    document.getElementById('sb-close-btn').style.display = 'none';
-    document.body.style.overflow = '';
-  }
-});
-
-</script>
-
 <style>
-:root{
-  --purple:#5B1FA2;--purple-dk:#3D1170;--purple-lt:#7B3CC3;--purple-bg:#F0EBF9;
-  --red:#CC0000;--gold:#C9940A;--white:#fff;--off:#F7F5FB;
-  --mtn:#1A1A2E;--border:#DDD5EC;--muted:#6B6680;
-  --green:#16A34A;--green-bg:#F0FBF4;--text:#1A1A2E;
-  --sidebar-w:250px;
+/* ════════════════════════════════════════════════
+   MFM PORTAL — FULL RESPONSIVE CSS
+════════════════════════════════════════════════ */
+:root {
+  --purple:#5B1FA2; --purple-dk:#3D1170; --purple-lt:#7B3CC3;
+  --purple-bg:#F0EBF9; --red:#CC0000; --gold:#C9940A;
+  --white:#fff; --off:#F7F5FB; --mtn:#1A1A2E;
+  --border:#DDD5EC; --muted:#6B6680;
+  --green:#16A34A; --green-bg:#F0FBF4;
+  --sidebar-w:245px;
 }
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Open Sans',sans-serif;background:var(--off);color:var(--text);min-height:100vh;}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body { font-family:'Open Sans',sans-serif; background:var(--off); color:var(--mtn); min-height:100vh; overflow-x:hidden; }
 
-/* LOGIN */
-#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,var(--purple-dk) 0%,var(--mtn) 60%,#0D0D1A 100%);padding:1rem;position:relative;overflow:hidden;}
-#login-screen::before{content:'';position:absolute;bottom:0;left:0;width:100%;height:40%;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 1440 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolygon points='0,200 300,200 720,30 1140,200 1440,200' fill='rgba(255,255,255,0.03)'/%3E%3C/svg%3E") bottom no-repeat;background-size:cover;pointer-events:none;}
-.login-card{background:var(--white);border-radius:16px;padding:2rem 1.4rem;width:100%;max-width:440px;box-shadow:0 32px 80px rgba(0,0,0,.5);position:relative;z-index:1;}
-@media(max-width:480px){.login-card{border-radius:12px;padding:1.5rem 1.2rem;}.login-emblem{width:56px;height:56px;}}
-.login-header{text-align:center;margin-bottom:2rem;}
-.login-emblem{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--purple-lt));display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;box-shadow:0 8px 24px rgba(91,31,162,.4);}
-.login-header h2{font-family:'Montserrat',sans-serif;font-size:1.15rem;font-weight:800;color:var(--purple-dk);margin-bottom:.2rem;}
-.login-header p{font-size:.78rem;color:var(--muted);}
-.security-badge{background:linear-gradient(90deg,var(--purple-bg),#fff);border:1px solid var(--border);border-left:4px solid var(--purple);border-radius:4px;padding:.6rem 1rem;margin-bottom:1.8rem;display:flex;align-items:center;gap:.6rem;}
-.security-badge span{font-family:'Montserrat',sans-serif;font-size:.7rem;font-weight:600;color:var(--purple);}
-.fg{margin-bottom:1.1rem;}
-.fg label{display:block;font-family:'Montserrat',sans-serif;font-size:.63rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem;}
-.fg input,.fg select{width:100%;border:1.5px solid var(--border);border-radius:6px;padding:.8rem 1rem;font-family:'Open Sans',sans-serif;font-size:.9rem;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;background:var(--off);}
-.fg input:focus,.fg select:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,31,162,.12);background:var(--white);}
-.btn-login{width:100%;background:linear-gradient(135deg,var(--purple),var(--purple-lt));color:#fff;font-family:'Montserrat',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.95rem;border:none;border-radius:6px;cursor:pointer;margin-top:.5rem;box-shadow:0 4px 16px rgba(91,31,162,.4);transition:opacity .2s;}
-.btn-login:hover{opacity:.9;}
-.btn-login:disabled{opacity:.6;cursor:not-allowed;}
-.login-err{display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;padding:.65rem 1rem;color:#B91C1C;font-size:.82rem;text-align:center;margin-top:.75rem;font-family:'Montserrat',sans-serif;}
-.login-setup{background:var(--off);border:1px solid var(--border);border-radius:8px;padding:1.2rem;margin-top:1.5rem;}
-.login-setup h4{font-family:'Montserrat',sans-serif;font-size:.72rem;font-weight:700;color:var(--mtn);margin-bottom:.6rem;letter-spacing:.05em;}
-.login-setup p{font-size:.72rem;color:var(--muted);line-height:1.7;}
-.login-setup code{background:var(--purple-bg);color:var(--purple);padding:.1rem .4rem;border-radius:3px;font-size:.72rem;font-family:monospace;}
+/* ── LOGIN ──────────────────────────────────────── */
+#login-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(135deg,var(--purple-dk),var(--mtn)); padding:1rem; }
+.lc { background:#fff; border-radius:14px; padding:2.2rem 1.8rem; width:100%; max-width:420px; box-shadow:0 24px 60px rgba(0,0,0,.45); }
+.lc-logo { text-align:center; margin-bottom:1.8rem; }
+.lc-emblem { width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg,var(--purple),var(--purple-lt)); display:flex; align-items:center; justify-content:center; margin:0 auto .8rem; }
+.lc h2 { font-family:'Montserrat',sans-serif; font-size:1.05rem; font-weight:800; color:var(--purple-dk); }
+.lc p { font-size:.75rem; color:var(--muted); margin-top:.2rem; }
+.lc-badge { background:var(--purple-bg); border:1px solid var(--border); border-left:4px solid var(--purple); border-radius:4px; padding:.55rem 1rem; margin-bottom:1.5rem; font-family:'Montserrat',sans-serif; font-size:.7rem; font-weight:600; color:var(--purple); }
+.fg { margin-bottom:1rem; }
+.fg label { display:block; font-family:'Montserrat',sans-serif; font-size:.62rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:.35rem; }
+.fg input, .fg select { width:100%; border:1.5px solid var(--border); border-radius:5px; padding:.75rem .95rem; font-size:.9rem; color:var(--mtn); outline:none; background:var(--off); transition:border-color .2s,box-shadow .2s; font-family:'Open Sans',sans-serif; -webkit-appearance:none; }
+.fg input:focus, .fg select:focus { border-color:var(--purple); box-shadow:0 0 0 3px rgba(91,31,162,.1); background:#fff; }
+.btn-login { width:100%; background:linear-gradient(135deg,var(--purple),var(--purple-lt)); color:#fff; font-family:'Montserrat',sans-serif; font-size:.85rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:.9rem; border:none; border-radius:5px; cursor:pointer; margin-top:.3rem; box-shadow:0 4px 14px rgba(91,31,162,.4); transition:opacity .2s; }
+.btn-login:hover { opacity:.92; }
+.btn-login:disabled { opacity:.6; cursor:not-allowed; }
+.login-err { display:none; background:#FEF2F2; border:1px solid #FECACA; border-radius:4px; padding:.6rem 1rem; color:#B91C1C; font-size:.8rem; text-align:center; margin-top:.75rem; font-family:'Montserrat',sans-serif; font-weight:600; }
+.lc-hint { background:var(--off); border:1px solid var(--border); border-radius:6px; padding:1rem; margin-top:1.2rem; font-size:.73rem; color:var(--muted); line-height:1.7; }
+.lc-hint strong { color:var(--purple); }
+.lc-hint code { background:var(--purple-bg); color:var(--purple-dk); padding:.1rem .4rem; border-radius:3px; font-size:.72rem; }
 
-/* APP */
-#app{display:none;min-height:100vh;}
-.app-layout{display:flex;min-height:100vh;}
+/* ── APP SHELL ──────────────────────────────────── */
+#app { display:none; min-height:100vh; }
+.layout { display:flex; min-height:100vh; }
 
-/* SIDEBAR */
-.sidebar{width:var(--sidebar-w);background:var(--purple-dk);flex-shrink:0;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow-y:auto;}
-.sb-brand{padding:1.3rem 1.2rem;border-bottom:1px solid rgba(255,255,255,.1);}
-.sb-logo{display:flex;align-items:center;gap:.7rem;}
-.sb-circle{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.sb-logo-text{font-family:'Montserrat',sans-serif;font-size:.78rem;font-weight:700;color:#fff;line-height:1.25;}
-.sb-branch-box{background:rgba(255,255,255,.07);border-radius:6px;padding:.6rem .9rem;margin:.9rem 1rem 0;border-left:3px solid var(--gold);}
-.sb-branch-box strong{font-family:'Montserrat',sans-serif;font-size:.72rem;font-weight:700;color:var(--gold);display:block;margin-bottom:.1rem;}
-.sb-branch-box span{font-size:.65rem;color:rgba(255,255,255,.55);}
-.sb-nav{flex:1;padding:.8rem 0;}
-.sb-section{font-family:'Montserrat',sans-serif;font-size:.58rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.3);padding:.7rem 1.2rem .3rem;}
-.sb-item{display:flex;align-items:center;gap:.7rem;padding:.65rem 1.2rem;cursor:pointer;transition:all .2s;color:rgba(255,255,255,.65);font-family:'Montserrat',sans-serif;font-size:.77rem;font-weight:500;border:none;background:none;width:100%;text-align:left;border-left:3px solid transparent;}
-.sb-item:hover{background:rgba(255,255,255,.08);color:#fff;border-left-color:rgba(255,255,255,.2);}
-.sb-item.active{background:rgba(255,255,255,.14);color:#fff;border-left-color:var(--gold);}
-.sb-item .si{font-size:.95rem;width:18px;text-align:center;}
-.sb-footer{padding:1rem 1.2rem;border-top:1px solid rgba(255,255,255,.08);}
-.sb-user{display:flex;align-items:center;gap:.65rem;margin-bottom:.7rem;}
-.sb-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--purple-lt),var(--purple));display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;}
-.sb-uname{font-family:'Montserrat',sans-serif;font-size:.72rem;font-weight:700;color:#fff;}
-.sb-urole{font-size:.62rem;color:rgba(255,255,255,.45);}
-.btn-logout{width:100%;background:rgba(204,0,0,.15);color:rgba(255,255,255,.7);border:1px solid rgba(204,0,0,.3);font-family:'Montserrat',sans-serif;font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:.55rem;border-radius:4px;cursor:pointer;transition:all .2s;}
-.btn-logout:hover{background:rgba(204,0,0,.5);color:#fff;}
+/* ── SIDEBAR ────────────────────────────────────── */
+.sidebar { width:var(--sidebar-w); background:var(--purple-dk); position:fixed; top:0; left:0; height:100vh; z-index:200; display:flex; flex-direction:column; overflow-y:auto; transition:transform .3s ease; }
+.sb-top { padding:1.2rem 1rem 1rem; border-bottom:1px solid rgba(255,255,255,.1); }
+.sb-head { display:flex; align-items:center; justify-content:space-between; }
+.sb-logo { display:flex; align-items:center; gap:.65rem; }
+.sb-circle { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sb-title { font-family:'Montserrat',sans-serif; font-size:.75rem; font-weight:700; color:#fff; line-height:1.25; }
+.sb-close { display:none; background:none; border:none; color:rgba(255,255,255,.6); font-size:1.3rem; cursor:pointer; padding:.2rem .3rem; line-height:1; }
+.sb-branch { background:rgba(255,255,255,.08); border-radius:5px; padding:.55rem .85rem; margin-top:.85rem; border-left:3px solid var(--gold); }
+.sb-branch strong { font-family:'Montserrat',sans-serif; font-size:.72rem; font-weight:700; color:var(--gold); display:block; }
+.sb-branch span { font-size:.65rem; color:rgba(255,255,255,.5); }
+.sb-nav { flex:1; padding:.6rem 0; }
+.sb-sect { font-family:'Montserrat',sans-serif; font-size:.57rem; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:rgba(255,255,255,.3); padding:.65rem 1.1rem .25rem; }
+.sb-item { display:flex; align-items:center; gap:.65rem; padding:.62rem 1.1rem; width:100%; background:none; border:none; border-left:3px solid transparent; color:rgba(255,255,255,.62); font-family:'Montserrat',sans-serif; font-size:.76rem; font-weight:500; cursor:pointer; text-align:left; transition:all .18s; }
+.sb-item:hover { background:rgba(255,255,255,.08); color:#fff; }
+.sb-item.active { background:rgba(255,255,255,.14); color:#fff; border-left-color:var(--gold); }
+.sb-item .si { font-size:.9rem; width:18px; text-align:center; }
+.sb-foot { padding:.9rem 1rem; border-top:1px solid rgba(255,255,255,.08); }
+.sb-user { display:flex; align-items:center; gap:.6rem; margin-bottom:.65rem; }
+.sb-av { width:32px; height:32px; border-radius:50%; background:var(--purple-lt); display:flex; align-items:center; justify-content:center; font-size:.85rem; flex-shrink:0; }
+.sb-uname { font-family:'Montserrat',sans-serif; font-size:.72rem; font-weight:700; color:#fff; }
+.sb-urole { font-size:.62rem; color:rgba(255,255,255,.45); }
+.btn-out { width:100%; background:rgba(204,0,0,.15); color:rgba(255,255,255,.7); border:1px solid rgba(204,0,0,.3); font-family:'Montserrat',sans-serif; font-size:.68rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; padding:.52rem; border-radius:4px; cursor:pointer; transition:all .2s; }
+.btn-out:hover { background:rgba(204,0,0,.45); color:#fff; }
 
-/* MAIN */
-.main-content{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;}
-.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:.85rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.06);gap:.5rem;}
-.topbar-left{display:flex;align-items:center;gap:1rem;}
-.topbar h1{font-family:'Montserrat',sans-serif;font-size:.95rem;font-weight:700;color:var(--mtn);}
-.tb-live{display:flex;align-items:center;gap:.35rem;font-family:'Montserrat',sans-serif;font-size:.65rem;font-weight:700;color:var(--green);letter-spacing:.08em;text-transform:uppercase;}
-.tb-live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.tb-date{font-size:.75rem;color:var(--muted);font-family:'Montserrat',sans-serif;}
-.page{display:none;padding:1.5rem 2rem;flex:1;}
-.page.active{display:block;}
+/* ── OVERLAY ────────────────────────────────────── */
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:199; }
+.overlay.show { display:block; }
 
-/* STAT CARDS */
-.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;margin-bottom:2rem;}
-.stat-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:1.4rem;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.04);}
-.stat-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;}
-.stat-card.purple::before{background:var(--purple);}
-.stat-card.red::before{background:var(--red);}
-.stat-card.green::before{background:var(--green);}
-.stat-card.gold::before{background:var(--gold);}
-.stat-label{font-family:'Montserrat',sans-serif;font-size:.63rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem;}
-.stat-value{font-family:'Montserrat',sans-serif;font-size:1.45rem;font-weight:800;color:var(--mtn);line-height:1;}
-.stat-value.purple{color:var(--purple);}
-.stat-value.red{color:var(--red);}
-.stat-value.green{color:var(--green);}
-.stat-value.gold{color:var(--gold);}
-.stat-sub{font-size:.7rem;color:var(--muted);margin-top:.4rem;}
-.stat-icon{position:absolute;top:1rem;right:1rem;font-size:1.8rem;opacity:.15;}
+/* ── MAIN ───────────────────────────────────────── */
+.main { margin-left:var(--sidebar-w); flex:1; display:flex; flex-direction:column; min-width:0; }
 
-/* CARD */
-.card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:1.5rem;box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:1.5rem;}
-.card-title{font-family:'Montserrat',sans-serif;font-size:.85rem;font-weight:700;color:var(--mtn);margin-bottom:1.2rem;display:flex;align-items:center;gap:.5rem;}
+/* ── TOPBAR ─────────────────────────────────────── */
+.topbar { background:#fff; border-bottom:1px solid var(--border); padding:.8rem 1.5rem; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow:0 1px 4px rgba(0,0,0,.06); gap:.5rem; }
+.tb-left { display:flex; align-items:center; gap:.75rem; min-width:0; }
+.hamburger { display:none; flex-direction:column; gap:4.5px; background:none; border:none; cursor:pointer; padding:.3rem; }
+.hamburger span { display:block; width:21px; height:2px; background:var(--purple); border-radius:2px; }
+.tb-title { font-family:'Montserrat',sans-serif; font-size:.92rem; font-weight:700; color:var(--mtn); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tb-live { display:flex; align-items:center; gap:.3rem; font-family:'Montserrat',sans-serif; font-size:.62rem; font-weight:700; color:var(--green); letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
+.tb-dot { width:7px; height:7px; border-radius:50%; background:var(--green); animation:blink 1.5s infinite; flex-shrink:0; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+.tb-date { font-size:.72rem; color:var(--muted); font-family:'Montserrat',sans-serif; white-space:nowrap; flex-shrink:0; }
 
-/* CHARTS */
-.charts-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:1.5rem;margin-bottom:1.5rem;}
-.chart-wrap{position:relative;height:260px;}
+/* ── PAGES ──────────────────────────────────────── */
+.page { display:none; padding:1.5rem; }
+.page.active { display:block; }
 
-/* TABLE */
-.tbl-wrap{overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:.83rem;}
-thead th{background:var(--purple-bg);font-family:'Montserrat',sans-serif;font-size:.63rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--purple);padding:.75rem 1rem;text-align:left;border-bottom:2px solid var(--border);}
-tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
-tbody tr:hover{background:var(--off);}
-tbody td{padding:.75rem 1rem;}
-tfoot td{border-top:2px solid var(--border);}
-.badge{display:inline-block;font-family:'Montserrat',sans-serif;font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.2rem .65rem;border-radius:30px;}
-.badge.income{background:#DCFCE7;color:#15803D;}
-.badge.expenditure{background:#FEE2E2;color:#B91C1C;}
-.badge.tithe{background:#EDE9FE;color:var(--purple);}
-.badge.offering{background:#FEF9C3;color:#854D0E;}
-.badge.donation{background:#DBEAFE;color:#1D4ED8;}
-.badge.vow{background:#FCE7F3;color:#9D174D;}
-.badge.remittance{background:#FEE2E2;color:#B91C1C;}
-.badge.salary{background:#FFEDD5;color:#C2410C;}
-.badge.running{background:#F3F4F6;color:#374151;}
-.badge.allowance{background:#E0F2FE;color:#0369A1;}
-.badge.other{background:#F3F4F6;color:#374151;}
+/* ── STAT GRID ──────────────────────────────────── */
+.stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+.stat-card { background:#fff; border:1px solid var(--border); border-radius:9px; padding:1.2rem 1rem; position:relative; overflow:hidden; }
+.stat-card::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; }
+.stat-card.c-purple::before { background:var(--purple); }
+.stat-card.c-red::before { background:var(--red); }
+.stat-card.c-green::before { background:var(--green); }
+.stat-card.c-gold::before { background:var(--gold); }
+.sc-lbl { font-family:'Montserrat',sans-serif; font-size:.6rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:.45rem; }
+.sc-val { font-family:'Montserrat',sans-serif; font-size:1.35rem; font-weight:800; line-height:1; }
+.sc-val.c-purple { color:var(--purple); }
+.sc-val.c-red { color:var(--red); }
+.sc-val.c-green { color:var(--green); }
+.sc-val.c-gold { color:var(--gold); }
+.sc-sub { font-size:.68rem; color:var(--muted); margin-top:.35rem; }
+.sc-ico { position:absolute; top:.9rem; right:.9rem; font-size:1.6rem; opacity:.14; }
 
-/* FORMS */
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;}
-.form-full{grid-column:1/-1;}
-.fg2{margin-bottom:0;}
-.fg2 label{display:block;font-family:'Montserrat',sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;}
-.fg2 input,.fg2 select,.fg2 textarea{width:100%;border:1.5px solid var(--border);border-radius:5px;padding:.7rem .9rem;font-family:'Open Sans',sans-serif;font-size:.88rem;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;background:var(--off);}
-.fg2 input:focus,.fg2 select:focus,.fg2 textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(91,31,162,.1);background:var(--white);}
-.fg2 textarea{min-height:80px;resize:vertical;}
-.fg2 select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B6680' d='M6 8L0 0h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .9rem center;background-color:var(--off);cursor:pointer;}
-.form-actions{display:flex;gap:1rem;margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border);flex-wrap:wrap;}
-.btn{font-family:'Montserrat',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.75rem 1.8rem;border-radius:5px;cursor:pointer;border:none;transition:all .2s;}
-.btn:disabled{opacity:.6;cursor:not-allowed;}
-.btn-purple{background:var(--purple);color:#fff;box-shadow:0 4px 12px rgba(91,31,162,.3);}
-.btn-purple:hover:not(:disabled){background:var(--purple-dk);}
-.btn-red{background:var(--red);color:#fff;box-shadow:0 4px 12px rgba(204,0,0,.25);}
-.btn-red:hover:not(:disabled){background:#A80000;}
-.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border);}
-.btn-ghost:hover{border-color:var(--purple);color:var(--purple);}
-.btn-sm{padding:.45rem 1rem;font-size:.67rem;}
+/* ── CARD ───────────────────────────────────────── */
+.card { background:#fff; border:1px solid var(--border); border-radius:9px; padding:1.3rem; margin-bottom:1.3rem; }
+.card-ttl { font-family:'Montserrat',sans-serif; font-size:.82rem; font-weight:700; color:var(--mtn); margin-bottom:1.1rem; }
 
-/* ALERTS */
-.alert{border-radius:4px;padding:.75rem 1.1rem;font-size:.83rem;margin-bottom:1rem;display:none;font-family:'Montserrat',sans-serif;font-weight:500;}
-.alert.success{background:var(--green-bg);border:1px solid #BBF7D0;color:#15803D;}
-.alert.error{background:#FEF2F2;border:1px solid #FECACA;color:#B91C1C;}
+/* ── CHARTS ─────────────────────────────────────── */
+.charts-row { display:grid; grid-template-columns:1.5fr 1fr; gap:1.2rem; margin-bottom:1.3rem; }
+.ch-wrap { height:240px; position:relative; }
 
-/* FILTER BAR */
-.filter-bar{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:1.2rem;align-items:flex-end;width:100%;}
-.filter-bar .fg2{margin-bottom:0;}
-.filter-bar .fg2 input,.filter-bar .fg2 select{padding:.55rem .8rem;font-size:.83rem;}
+/* ── TABLES ─────────────────────────────────────── */
+.tbl-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table { width:100%; border-collapse:collapse; font-size:.82rem; min-width:460px; }
+thead th { background:var(--purple-bg); font-family:'Montserrat',sans-serif; font-size:.6rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--purple); padding:.65rem .9rem; text-align:left; border-bottom:2px solid var(--border); white-space:nowrap; }
+tbody tr { border-bottom:1px solid var(--border); transition:background .15s; }
+tbody tr:hover { background:var(--off); }
+tbody td { padding:.65rem .9rem; vertical-align:middle; }
+tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
 
-/* SEC HEADER */
-.sec-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;}
-.sec-header h2{font-family:'Montserrat',sans-serif;font-size:1.1rem;font-weight:800;color:var(--mtn);}
-.sec-header p{font-size:.78rem;color:var(--muted);margin-top:.2rem;}
+/* ── BADGES ─────────────────────────────────────── */
+.badge { display:inline-block; font-family:'Montserrat',sans-serif; font-size:.58rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:.18rem .6rem; border-radius:20px; white-space:nowrap; }
+.badge.income  { background:#DCFCE7; color:#15803D; }
+.badge.expenditure { background:#FEE2E2; color:#B91C1C; }
+.badge.tithe   { background:#EDE9FE; color:var(--purple); }
+.badge.offering{ background:#FEF9C3; color:#854D0E; }
+.badge.donation{ background:#DBEAFE; color:#1D4ED8; }
+.badge.vow     { background:#FCE7F3; color:#9D174D; }
+.badge.remittance{ background:#FEE2E2; color:#B91C1C; }
+.badge.salary  { background:#FFEDD5; color:#C2410C; }
+.badge.running { background:#F3F4F6; color:#374151; }
+.badge.allowance{ background:#E0F2FE; color:#0369A1; }
+.badge.other   { background:#F3F4F6; color:#374151; }
 
-/* BRANCH CARDS */
-.branch-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1.2rem;margin-bottom:1.5rem;}
-.branch-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:1.4rem;position:relative;overflow:hidden;}
-.branch-card::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px;background:linear-gradient(90deg,var(--purple),var(--red));}
-.bc-name{font-family:'Montserrat',sans-serif;font-size:.85rem;font-weight:700;color:var(--mtn);margin-bottom:.2rem;}
-.bc-loc{font-size:.72rem;color:var(--muted);margin-bottom:1rem;}
-.bc-nums{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;}
-.bc-num{background:var(--off);border-radius:5px;padding:.6rem .8rem;}
-.bc-num .n-lbl{font-family:'Montserrat',sans-serif;font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
-.bc-num .n-val{font-family:'Montserrat',sans-serif;font-size:.9rem;font-weight:800;margin-top:.15rem;}
-.n-val.inc{color:var(--green);}
-.n-val.exp{color:var(--red);}
+/* ── FORM LAYOUT ────────────────────────────────── */
+.fg2 { margin-bottom:0; }
+.fg2 label { display:block; font-family:'Montserrat',sans-serif; font-size:.6rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:.32rem; }
+.fg2 input, .fg2 select, .fg2 textarea { width:100%; border:1.5px solid var(--border); border-radius:5px; padding:.65rem .85rem; font-size:.87rem; color:var(--mtn); outline:none; background:var(--off); transition:border-color .2s,box-shadow .2s; font-family:'Open Sans',sans-serif; -webkit-appearance:none; }
+.fg2 input:focus, .fg2 select:focus, .fg2 textarea:focus { border-color:var(--purple); box-shadow:0 0 0 3px rgba(91,31,162,.1); background:#fff; }
+.fg2 textarea { min-height:75px; resize:vertical; }
+.fg2 select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B6680' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right .85rem center; background-color:var(--off); cursor:pointer; padding-right:2.2rem; }
+.fgrid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.fgrid.three { grid-template-columns:1fr 1fr 1fr; }
+.fcol2 { grid-column:1/-1; }
+.f-actions { display:flex; gap:.85rem; margin-top:1.3rem; padding-top:1.1rem; border-top:1px solid var(--border); flex-wrap:wrap; }
 
-/* SETUP GUIDE */
-.setup-guide{background:linear-gradient(135deg,var(--purple-bg),#fff);border:2px solid var(--purple);border-radius:12px;padding:2rem;margin-bottom:2rem;}
-.setup-guide h3{font-family:'Montserrat',sans-serif;font-size:1rem;font-weight:800;color:var(--purple-dk);margin-bottom:1rem;}
-.setup-step{display:flex;gap:1rem;margin-bottom:1.2rem;align-items:flex-start;}
-.step-num{width:28px;height:28px;border-radius:50%;background:var(--purple);color:#fff;font-family:'Montserrat',sans-serif;font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.step-content h4{font-family:'Montserrat',sans-serif;font-size:.82rem;font-weight:700;color:var(--mtn);margin-bottom:.25rem;}
-.step-content p{font-size:.8rem;color:var(--muted);line-height:1.6;}
-.step-content code{background:var(--purple-bg);color:var(--purple);padding:.1rem .5rem;border-radius:3px;font-size:.78rem;font-family:monospace;display:inline-block;margin:.1rem 0;}
+/* ── BUTTONS ────────────────────────────────────── */
+.btn { font-family:'Montserrat',sans-serif; font-size:.75rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:.7rem 1.6rem; border-radius:5px; cursor:pointer; border:none; transition:all .18s; }
+.btn:disabled { opacity:.6; cursor:not-allowed; }
+.btn-p { background:var(--purple); color:#fff; box-shadow:0 3px 10px rgba(91,31,162,.3); }
+.btn-p:hover:not(:disabled) { background:var(--purple-dk); }
+.btn-r { background:var(--red); color:#fff; box-shadow:0 3px 10px rgba(204,0,0,.25); }
+.btn-r:hover:not(:disabled) { background:#A80000; }
+.btn-g { background:transparent; color:var(--muted); border:1.5px solid var(--border); }
+.btn-g:hover { border-color:var(--purple); color:var(--purple); }
+.btn-sm { padding:.4rem .9rem; font-size:.65rem; }
 
-/* RESPONSIVE */
-/* ── HAMBURGER BUTTON ────────────────────────────── */
-.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;border:none;background:none;padding:.4rem;margin-right:.5rem;}
-.hamburger span{display:block;width:22px;height:2px;background:var(--purple);border-radius:2px;transition:all .3s;}
+/* ── ALERTS ─────────────────────────────────────── */
+.alert { display:none; border-radius:4px; padding:.7rem 1rem; font-size:.8rem; margin-bottom:.9rem; font-family:'Montserrat',sans-serif; font-weight:500; }
+.a-ok  { background:var(--green-bg); border:1px solid #BBF7D0; color:#15803D; }
+.a-err { background:#FEF2F2; border:1px solid #FECACA; color:#B91C1C; }
 
-/* ── MOBILE OVERLAY ──────────────────────────────── */
-.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99;}
-.sidebar-overlay.show{display:block;}
+/* ── FILTER BAR ─────────────────────────────────── */
+.fbar { display:flex; gap:.7rem; flex-wrap:wrap; margin-bottom:1.1rem; align-items:flex-end; }
+.fbar .fg2 { flex:1; min-width:130px; }
+.fbar .fg2 input, .fbar .fg2 select { padding:.55rem .75rem; font-size:.82rem; }
+.fbar .btn { flex-shrink:0; }
 
-/* ── TABLET (≤1000px) ────────────────────────────── */
-@media(max-width:1000px){
-  .stat-grid{grid-template-columns:1fr 1fr;}
-  .charts-grid{grid-template-columns:1fr;}
-  .form-grid{grid-template-columns:1fr;}
-  .branch-cards{grid-template-columns:1fr 1fr;}
+/* ── SEC HEADER ─────────────────────────────────── */
+.sec-hd { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:1.3rem; gap:1rem; flex-wrap:wrap; }
+.sec-hd h2 { font-family:'Montserrat',sans-serif; font-size:1.05rem; font-weight:800; color:var(--mtn); }
+.sec-hd p { font-size:.75rem; color:var(--muted); margin-top:.15rem; }
+
+/* ── BRANCH CARDS ───────────────────────────────── */
+.br-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1rem; margin-bottom:1.3rem; }
+.br-card { background:#fff; border:1px solid var(--border); border-radius:9px; padding:1.2rem; position:relative; overflow:hidden; }
+.br-card::before { content:''; position:absolute; top:0; left:0; width:100%; height:3px; background:linear-gradient(90deg,var(--purple),var(--red)); }
+.br-name { font-family:'Montserrat',sans-serif; font-size:.83rem; font-weight:700; color:var(--mtn); margin-bottom:.15rem; }
+.br-loc { font-size:.7rem; color:var(--muted); margin-bottom:.85rem; }
+.br-nums { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
+.br-num { background:var(--off); border-radius:4px; padding:.5rem .65rem; }
+.br-num .nl { font-family:'Montserrat',sans-serif; font-size:.56rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.br-num .nv { font-family:'Montserrat',sans-serif; font-size:.88rem; font-weight:800; margin-top:.12rem; }
+.nv.inc { color:var(--green); }
+.nv.exp { color:var(--red); }
+
+/* ── SETUP GUIDE ────────────────────────────────── */
+.setup-box { background:linear-gradient(135deg,var(--purple-bg),#fff); border:2px solid var(--purple); border-radius:10px; padding:1.5rem; margin-bottom:1.3rem; }
+.setup-box h3 { font-family:'Montserrat',sans-serif; font-size:.95rem; font-weight:800; color:var(--purple-dk); margin-bottom:1.1rem; }
+.s-step { display:flex; gap:.85rem; margin-bottom:1.1rem; }
+.s-num { width:26px; height:26px; border-radius:50%; background:var(--purple); color:#fff; font-family:'Montserrat',sans-serif; font-size:.72rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:.1rem; }
+.s-body h4 { font-family:'Montserrat',sans-serif; font-size:.8rem; font-weight:700; color:var(--mtn); margin-bottom:.2rem; }
+.s-body p { font-size:.78rem; color:var(--muted); line-height:1.6; }
+.s-body code { background:var(--purple-bg); color:var(--purple); padding:.1rem .4rem; border-radius:3px; font-size:.75rem; font-family:monospace; display:inline-block; margin:.1rem 0; word-break:break-all; }
+
+/* ── FIREBASE BANNER ────────────────────────────── */
+#fb-banner { display:none; background:#FEF2F2; border-bottom:2px solid #FECACA; padding:.7rem 1.5rem; font-family:'Montserrat',sans-serif; font-size:.78rem; color:#B91C1C; font-weight:600; }
+
+/* ══════════════════════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+══════════════════════════════════════════════════ */
+
+/* Tablet ≤ 1024px */
+@media(max-width:1024px) {
+  .stat-grid { grid-template-columns:1fr 1fr; }
+  .charts-row { grid-template-columns:1fr; }
+  .fgrid.three { grid-template-columns:1fr 1fr; }
 }
 
-/* ── MOBILE (≤768px) ─────────────────────────────── */
-@media(max-width:768px){
-  /* Sidebar slides in/out */
-  .sidebar{transform:translateX(-100%);transition:transform .3s ease;box-shadow:4px 0 24px rgba(0,0,0,.3);}
-  .sidebar.open{transform:translateX(0);}
+/* Mobile ≤ 768px */
+@media(max-width:768px) {
+  /* Sidebar becomes drawer */
+  .sidebar { transform:translateX(-100%); }
+  .sidebar.open { transform:translateX(0); box-shadow:6px 0 24px rgba(0,0,0,.35); }
+  .sb-close { display:block; }
 
-  /* Main fills full width */
-  .main-content{margin-left:0;}
+  /* Main takes full width */
+  .main { margin-left:0; }
 
   /* Show hamburger */
-  .hamburger{display:flex;}
+  .hamburger { display:flex; }
 
-  /* Topbar adjustments */
-  .topbar{padding:.75rem 1rem;}
-  .tb-date{display:none;}
+  /* Topbar */
+  .topbar { padding:.7rem 1rem; }
+  .tb-date { display:none; }
 
   /* Pages */
-  .page{padding:1rem;}
+  .page { padding:1rem; }
 
-  /* Stats - 1 column on small phones, 2 on larger */
-  .stat-grid{grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.2rem;}
-  .stat-card{padding:1rem;}
-  .stat-value{font-size:1.15rem;}
-  .stat-icon{font-size:1.4rem;}
+  /* Stats */
+  .stat-grid { grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:1rem; }
+  .stat-card { padding:1rem .85rem; }
+  .sc-val { font-size:1.1rem; }
+  .sc-ico { font-size:1.3rem; }
 
   /* Charts */
-  .charts-grid{grid-template-columns:1fr;gap:1rem;}
-  .chart-wrap{height:200px;}
-
-  /* Cards */
-  .card{padding:1rem;margin-bottom:1rem;}
-  .card-title{font-size:.8rem;}
+  .ch-wrap { height:200px; }
 
   /* Forms */
-  .form-grid{grid-template-columns:1fr;}
-  .form-full{grid-column:1;}
-  .form-actions{flex-direction:column;}
-  .form-actions .btn{width:100%;text-align:center;}
-
-  /* Tables - horizontal scroll */
-  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-  table{min-width:480px;}
-  thead th{font-size:.6rem;padding:.6rem .75rem;white-space:nowrap;}
-  tbody td{padding:.6rem .75rem;font-size:.8rem;}
+  .fgrid { grid-template-columns:1fr; gap:.85rem; }
+  .fgrid.three { grid-template-columns:1fr; }
+  .fcol2 { grid-column:1; }
+  .f-actions { flex-direction:column; }
+  .f-actions .btn { width:100%; text-align:center; }
 
   /* Filter bar */
-  .filter-bar{flex-direction:column;align-items:stretch;}
-  .filter-bar .fg2{width:100%;}
-  .filter-bar .btn{width:100%;}
+  .fbar { flex-direction:column; align-items:stretch; }
+  .fbar .fg2 { min-width:unset; width:100%; }
+  .fbar .btn { width:100%; }
 
   /* Sec header */
-  .sec-header{flex-direction:column;gap:.75rem;align-items:flex-start;}
+  .sec-hd { flex-direction:column; align-items:flex-start; gap:.6rem; }
 
   /* Branch cards */
-  .branch-cards{grid-template-columns:1fr;}
+  .br-grid { grid-template-columns:1fr; }
 
-  /* Setup guide */
-  .setup-step{flex-direction:column;gap:.5rem;}
+  /* Setup steps */
+  .s-step { flex-direction:column; gap:.4rem; }
+  .s-num { align-self:flex-start; }
+
+  /* Card */
+  .card { padding:1rem; }
+  .setup-box { padding:1.1rem; }
 }
 
-/* ── SMALL PHONES (≤400px) ───────────────────────── */
-@media(max-width:400px){
-  .stat-grid{grid-template-columns:1fr;}
-  .stat-card{padding:.9rem;}
-  .page{padding:.75rem;}
-  .card{padding:.85rem;}
-  .btn{padding:.7rem 1.2rem;font-size:.72rem;}
-  .bc-nums{grid-template-columns:1fr 1fr;}
+/* Small phones ≤ 420px */
+@media(max-width:420px) {
+  .stat-grid { grid-template-columns:1fr 1fr; gap:.6rem; }
+  .sc-val { font-size:.95rem; }
+  .sc-lbl { font-size:.55rem; }
+  .page { padding:.75rem; }
+  .card { padding:.85rem; }
+  .lc { padding:1.6rem 1.2rem; }
+  .br-nums { grid-template-columns:1fr 1fr; }
+  .btn { padding:.65rem 1.1rem; font-size:.7rem; }
 }
 
-/* ── PRINT ───────────────────────────────────────── */
-@media print{
-  .sidebar,.topbar,.form-actions,.btn,.filter-bar,.hamburger,.sidebar-overlay{display:none!important;}
-  .main-content{margin-left:0;}
-  .page.active{display:block!important;}
-  .stat-grid{grid-template-columns:1fr 1fr;}
-  .charts-grid{grid-template-columns:1fr 1fr;}
+/* Very small ≤ 350px */
+@media(max-width:350px) {
+  .stat-grid { grid-template-columns:1fr; }
+}
+
+/* Print */
+@media print {
+  .sidebar, .topbar, .f-actions, .fbar, .hamburger, .overlay, #fb-banner { display:none!important; }
+  .main { margin-left:0; }
+  .page.active { display:block!important; padding:0; }
+  .stat-grid { grid-template-columns:1fr 1fr; }
+  .charts-row { grid-template-columns:1fr 1fr; }
 }
 </style>
 </head>
 <body>
 
-<!-- ══════════ LOGIN ══════════════════════════════ -->
+<!-- ══════════════ LOGIN ═══════════════════════════ -->
 <div id="login-screen">
-<div class="login-card">
-  <div class="login-header">
-    <div class="login-emblem">
-      <svg width="36" height="28" viewBox="0 0 34 26" fill="none">
-        <polygon points="17,2 28,22 6,22" fill="none" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+<div class="lc">
+  <div class="lc-logo">
+    <div class="lc-emblem">
+      <svg width="34" height="26" viewBox="0 0 34 26" fill="none">
+        <polygon points="17,2 28,22 6,22" fill="none" stroke="white" stroke-width="2.4" stroke-linejoin="round"/>
         <polygon points="8,22 15,10 22,22" fill="white" opacity="0.85"/>
-        <line x1="4" y1="22" x2="30" y2="22" stroke="white" stroke-width="2.5"/>
+        <line x1="4" y1="22" x2="30" y2="22" stroke="white" stroke-width="2.4"/>
       </svg>
     </div>
     <h2>MFM Financial Portal</h2>
-    <p>Akure Regional Office · Ondo State, Nigeria</p>
+    <p>Akure Regional Office · Ondo State</p>
   </div>
-  <div class="security-badge">
-    <span>🔒</span>
-    <span>Authorised Personnel Only — Secure Login</span>
+  <div class="lc-badge">🔒 Authorised Personnel Only</div>
+
+  <div class="fg">
+    <label>Select Your Branch</label>
+    <select id="l-branch">
+      <option value="">— Select branch —</option>
+      <option value="HQ">Regional HQ — SW 58 Araromi (Main Assembly)</option>
+      <option value="B1">MFM Oke-Ijebu Assembly</option>
+      <option value="B2">MFM Ijoka Assembly</option>
+      <option value="B3">MFM Shagari Assembly</option>
+      <option value="B4">MFM Aswani Assembly</option>
+      <option value="B5">MFM Oba-Ile Assembly</option>
+      <option value="B6">MFM Ijapo Assembly</option>
+      <option value="ADMIN">Regional Administrator (All Branches)</option>
+    </select>
   </div>
   <div class="fg">
-    <label>Email Address</label>
-    <input type="email" id="loginEmail" placeholder="e.g. hq@mfmararomi.org" onkeydown="if(event.key==='Enter')doLogin()">
+    <label>Username</label>
+    <input type="text" id="l-user" placeholder="Enter your username" autocomplete="username">
   </div>
   <div class="fg">
     <label>Password</label>
-    <input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter')doLogin()">
   </div>
-  <button class="btn-login" id="loginBtn" onclick="doLogin()">Login to Portal</button>
-  <div class="login-err" id="loginErr"></div>
+  <button class="btn-login" id="l-btn" onclick="doLogin()">Login to Portal</button>
+  <div class="login-err" id="l-err"></div>
 
-  <div class="login-setup">
-    <h4>⚙️ Firebase Setup Required</h4>
-    <p>This portal requires a Firebase project to store data in real time across all branches. Follow the setup guide inside the portal after configuring your Firebase credentials in the HTML file.</p>
-    <p style="margin-top:.5rem;">Branch emails follow the pattern: <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="29415869444f44485b485b46444007465b4e">[email&#160;protected]</a></code>, <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7a15111f13101f180f3a171c171b081b081517135415081d">[email&#160;protected]</a></code>, etc.</p>
+  <div class="lc-hint">
+    <strong>Default login credentials:</strong><br>
+    Branch accountant — username: <code>accountant</code> · password: <code>mfm2025</code><br>
+    Administrator — username: <code>admin</code> · password: <code>admin2025</code><br>
+    <em>Change these passwords after first login in the Setup Guide.</em>
   </div>
 </div>
 </div>
 
-<!-- ══════════ APP ════════════════════════════════ -->
+<!-- ══════════════ APP ═════════════════════════════ -->
 <div id="app">
-<div class="app-layout">
+<div id="fb-banner" id="fb-banner"></div>
+<div class="layout">
 
-  <!-- SIDEBAR -->
+  <!-- Overlay for mobile sidebar -->
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <!-- ── SIDEBAR ── -->
   <aside class="sidebar" id="sidebar">
-    <div class="sb-brand">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div class="sb-top">
+      <div class="sb-head">
         <div class="sb-logo">
           <div class="sb-circle">
-          <svg width="22" height="18" viewBox="0 0 34 26" fill="none">
-            <polygon points="17,2 28,22 6,22" fill="none" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
-            <polygon points="8,22 15,10 22,22" fill="white" opacity="0.8"/>
-            <line x1="4" y1="22" x2="30" y2="22" stroke="white" stroke-width="2.5"/>
-          </svg>
+            <svg width="20" height="16" viewBox="0 0 34 26" fill="none">
+              <polygon points="17,2 28,22 6,22" fill="none" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+              <polygon points="8,22 15,10 22,22" fill="white" opacity="0.8"/>
+              <line x1="4" y1="22" x2="30" y2="22" stroke="white" stroke-width="2.5"/>
+            </svg>
+          </div>
+          <div class="sb-title">MFM Financial<br>Portal</div>
         </div>
-          <div class="sb-logo-text">MFM Financial<br>Portal</div>
-        </div>
-        <button onclick="closeSidebar()" style="display:none;background:none;border:none;color:rgba(255,255,255,.6);font-size:1.4rem;cursor:pointer;padding:.2rem .4rem;line-height:1;" id="sb-close-btn">✕</button>
+        <button class="sb-close" onclick="closeSidebar()">✕</button>
       </div>
-      <div class="sb-branch-box">
-        <strong id="sb-branch-name">Loading…</strong>
-        <span id="sb-branch-loc"></span>
+      <div class="sb-branch">
+        <strong id="sb-bname">Loading…</strong>
+        <span id="sb-bshort"></span>
       </div>
     </div>
+
     <nav class="sb-nav">
-      <div class="sb-section">Overview</div>
-      <button class="sb-item active" onclick="showPage('dashboard',this)"><span class="si">📊</span>Dashboard</button>
-      <div class="sb-section">Transactions</div>
-      <button class="sb-item" onclick="showPage('income',this)"><span class="si">💰</span>Record Income</button>
-      <button class="sb-item" onclick="showPage('expenditure',this)"><span class="si">💸</span>Record Expenditure</button>
-      <button class="sb-item" onclick="showPage('transactions',this)"><span class="si">📋</span>All Transactions</button>
-      <div class="sb-section">Reports</div>
-      <button class="sb-item" onclick="showPage('reports',this)"><span class="si">📈</span>Branch Report</button>
-      <button class="sb-item" onclick="showPage('regional',this)" id="sb-regional" style="display:none"><span class="si">🗺️</span>Regional Overview</button>
-      <div class="sb-section">System</div>
-      <button class="sb-item" onclick="showPage('setup',this)"><span class="si">⚙️</span>Setup Guide</button>
+      <div class="sb-sect">Overview</div>
+      <button class="sb-item active" onclick="nav('dashboard',this)"><span class="si">📊</span>Dashboard</button>
+      <div class="sb-sect">Transactions</div>
+      <button class="sb-item" onclick="nav('income',this)"><span class="si">💰</span>Record Income</button>
+      <button class="sb-item" onclick="nav('expenditure',this)"><span class="si">💸</span>Record Expenditure</button>
+      <button class="sb-item" onclick="nav('transactions',this)"><span class="si">📋</span>All Transactions</button>
+      <div class="sb-sect">Reports</div>
+      <button class="sb-item" onclick="nav('reports',this)"><span class="si">📈</span>Branch Report</button>
+      <button class="sb-item" id="sb-reg" style="display:none" onclick="nav('regional',this)"><span class="si">🗺️</span>Regional Overview</button>
+      <div class="sb-sect">Help</div>
+      <button class="sb-item" onclick="nav('setup',this)"><span class="si">⚙️</span>Firebase Setup Guide</button>
     </nav>
-    <div class="sb-footer">
+
+    <div class="sb-foot">
       <div class="sb-user">
-        <div class="sb-avatar">👤</div>
+        <div class="sb-av">👤</div>
         <div>
-          <div class="sb-uname" id="sb-user-name">User</div>
-          <div class="sb-urole" id="sb-user-role">Accountant</div>
+          <div class="sb-uname" id="sb-uname">—</div>
+          <div class="sb-urole" id="sb-urole">—</div>
         </div>
       </div>
-      <button class="btn-logout" onclick="doLogout()">↩ Sign Out</button>
+      <button class="btn-out" onclick="doLogout()">↩ Sign Out</button>
     </div>
   </aside>
 
-  <!-- MAIN -->
-  <div class="main-content">
-    <!-- Mobile sidebar overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
-
+  <!-- ── MAIN CONTENT ── -->
+  <div class="main">
     <div class="topbar">
-      <div class="topbar-left">
-        <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Open menu">
+      <div class="tb-left">
+        <button class="hamburger" onclick="openSidebar()" aria-label="Menu">
           <span></span><span></span><span></span>
         </button>
-        <h1 id="page-title">Dashboard</h1>
-        <div class="tb-live"><div class="tb-live-dot"></div>Live</div>
+        <span class="tb-title" id="tb-title">Dashboard</span>
+        <div class="tb-live"><div class="tb-dot"></div>Live</div>
       </div>
       <span class="tb-date" id="tb-date"></span>
     </div>
@@ -909,31 +424,31 @@ tfoot td{border-top:2px solid var(--border);}
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
       <div class="stat-grid" id="stat-grid">
-        <div class="stat-card purple"><div class="stat-icon">💰</div><div class="stat-label">This Month's Income</div><div class="stat-value purple">Loading…</div></div>
-        <div class="stat-card red"><div class="stat-icon">💸</div><div class="stat-label">This Month's Expenditure</div><div class="stat-value red">Loading…</div></div>
-        <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-label">Net Balance</div><div class="stat-value green">Loading…</div></div>
-        <div class="stat-card gold"><div class="stat-icon">📋</div><div class="stat-label">Records This Month</div><div class="stat-value gold">—</div></div>
+        <div class="stat-card c-purple"><div class="sc-ico">💰</div><div class="sc-lbl">This Month's Income</div><div class="sc-val c-purple">Loading…</div></div>
+        <div class="stat-card c-red"><div class="sc-ico">💸</div><div class="sc-lbl">This Month's Expenditure</div><div class="sc-val c-red">Loading…</div></div>
+        <div class="stat-card c-green"><div class="sc-ico">✅</div><div class="sc-lbl">Net Balance</div><div class="sc-val c-green">Loading…</div></div>
+        <div class="stat-card c-gold"><div class="sc-ico">📋</div><div class="sc-lbl">Records This Month</div><div class="sc-val c-gold">—</div></div>
       </div>
-      <div class="charts-grid">
-        <div class="card"><div class="card-title">📊 Income vs Expenditure (Last 6 Months)</div><div class="chart-wrap"><canvas id="barChart"></canvas></div></div>
-        <div class="card"><div class="card-title">🍩 Income Breakdown (This Month)</div><div class="chart-wrap"><canvas id="doughnutChart"></canvas></div></div>
+      <div class="charts-row">
+        <div class="card"><div class="card-ttl">📊 Income vs Expenditure — Last 6 Months</div><div class="ch-wrap"><canvas id="barChart"></canvas></div></div>
+        <div class="card"><div class="card-ttl">🍩 Income Breakdown This Month</div><div class="ch-wrap"><canvas id="doughnutChart"></canvas></div></div>
       </div>
       <div class="card">
-        <div class="card-title">⏱️ Recent Transactions (All Branches)</div>
-        <div class="tbl-wrap"><table>
+        <div class="card-ttl">⏱️ Recent Transactions</div>
+        <div class="tbl-scroll"><table>
           <thead><tr><th>Date</th><th>Branch</th><th>Flow</th><th>Category</th><th>Description</th><th>Amount (₦)</th></tr></thead>
-          <tbody id="recent-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">Loading transactions…</td></tr></tbody>
+          <tbody id="recent-tb"></tbody>
         </table></div>
       </div>
     </div>
 
     <!-- INCOME -->
     <div class="page" id="page-income">
-      <div class="sec-header"><div><h2>Record Income</h2><p>Enter income received by your assembly</p></div></div>
-      <div class="alert success" id="income-ok">✅ Income recorded successfully and saved to Firebase!</div>
-      <div class="alert error" id="income-err">⚠️ Please fill all required fields (Date, Type, Amount).</div>
+      <div class="sec-hd"><div><h2>Record Income</h2><p>Enter income received by your assembly</p></div></div>
+      <div class="alert a-ok" id="inc-ok">✅ Income saved successfully!</div>
+      <div class="alert a-err" id="inc-err">⚠️ Please fill Date, Type and Amount.</div>
       <div class="card">
-        <div class="form-grid">
+        <div class="fgrid">
           <div class="fg2"><label>Date *</label><input type="date" id="i-date"></div>
           <div class="fg2"><label>Income Type *</label>
             <select id="i-type">
@@ -950,33 +465,35 @@ tfoot td{border-top:2px solid var(--border);}
             </select>
           </div>
           <div class="fg2"><label>Amount (₦) *</label><input type="number" id="i-amount" placeholder="0.00" min="0" step="0.01"></div>
-          <div class="fg2"><label>Received By</label><input type="text" id="i-receiver" placeholder="Name of receiving officer"></div>
-          <div class="fg2"><label>Service / Event</label><input type="text" id="i-event" placeholder="e.g. Sunday Service — 23 Feb 2025"></div>
-          <div class="fg2"><label>Receipt Number</label><input type="text" id="i-receipt" placeholder="Optional receipt number"></div>
-          <div class="fg2 form-full"><label>Description / Notes</label><textarea id="i-desc" placeholder="Additional details about this income entry…"></textarea></div>
+          <div class="fg2"><label>Received By</label><input type="text" id="i-rcvr" placeholder="Officer's name"></div>
+          <div class="fg2"><label>Service / Event</label><input type="text" id="i-event" placeholder="e.g. Sunday Service 23 Feb"></div>
+          <div class="fg2"><label>Receipt Number</label><input type="text" id="i-rcpt" placeholder="Optional"></div>
+          <div class="fg2 fcol2"><label>Notes</label><textarea id="i-desc" placeholder="Additional details…"></textarea></div>
         </div>
-        <div class="form-actions">
-          <button class="btn btn-purple" id="income-save-btn" onclick="saveIncome()">💾 Save Income Record</button>
-          <button class="btn btn-ghost" onclick="clearIncome()">Clear Form</button>
+        <div class="f-actions">
+          <button class="btn btn-p" id="i-save-btn" onclick="saveIncome()">💾 Save Income</button>
+          <button class="btn btn-g" onclick="clearIncome()">Clear</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">💰 This Month's Income — <span id="income-month-label"></span></div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Date</th><th>Type</th><th>Event / Service</th><th>Received By</th><th>Amount (₦)</th><th>Action</th></tr></thead>
-          <tbody id="income-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">Loading…</td></tr></tbody>
+        <div class="card-ttl">💰 This Month's Income — <span id="inc-mo-lbl"></span></div>
+        <div class="tbl-scroll"><table>
+          <thead><tr><th>Date</th><th>Type</th><th>Event</th><th>Received By</th><th>Amount (₦)</th><th></th></tr></thead>
+          <tbody id="inc-tb"></tbody>
         </table></div>
-        <div style="margin-top:1rem;text-align:right;font-family:'Montserrat',sans-serif;font-size:.85rem;font-weight:800;color:var(--green);">Monthly Total: ₦<span id="income-total">0.00</span></div>
+        <div style="text-align:right;margin-top:.8rem;font-family:'Montserrat',sans-serif;font-size:.83rem;font-weight:800;color:var(--green);">
+          Total: ₦<span id="inc-total">0.00</span>
+        </div>
       </div>
     </div>
 
     <!-- EXPENDITURE -->
     <div class="page" id="page-expenditure">
-      <div class="sec-header"><div><h2>Record Expenditure</h2><p>Enter expenses incurred by your assembly</p></div></div>
-      <div class="alert success" id="exp-ok">✅ Expenditure recorded successfully and saved to Firebase!</div>
-      <div class="alert error" id="exp-err">⚠️ Please fill all required fields (Date, Type, Amount).</div>
+      <div class="sec-hd"><div><h2>Record Expenditure</h2><p>Enter expenses incurred by your assembly</p></div></div>
+      <div class="alert a-ok" id="exp-ok">✅ Expenditure saved successfully!</div>
+      <div class="alert a-err" id="exp-err">⚠️ Please fill Date, Type and Amount.</div>
       <div class="card">
-        <div class="form-grid">
+        <div class="fgrid">
           <div class="fg2"><label>Date *</label><input type="date" id="e-date"></div>
           <div class="fg2"><label>Expenditure Type *</label>
             <select id="e-type">
@@ -1004,118 +521,625 @@ tfoot td{border-top:2px solid var(--border);}
             </select>
           </div>
           <div class="fg2"><label>Amount (₦) *</label><input type="number" id="e-amount" placeholder="0.00" min="0" step="0.01"></div>
-          <div class="fg2"><label>Paid To / Beneficiary</label><input type="text" id="e-beneficiary" placeholder="Name or organisation"></div>
-          <div class="fg2"><label>Approved By</label><input type="text" id="e-approved" placeholder="Name of approving officer"></div>
-          <div class="fg2"><label>Voucher / Receipt No.</label><input type="text" id="e-voucher" placeholder="Voucher or receipt number"></div>
-          <div class="fg2 form-full"><label>Description / Purpose</label><textarea id="e-desc" placeholder="Describe the purpose of this expenditure…"></textarea></div>
+          <div class="fg2"><label>Paid To / Beneficiary</label><input type="text" id="e-benef" placeholder="Name or organisation"></div>
+          <div class="fg2"><label>Approved By</label><input type="text" id="e-appr" placeholder="Approving officer"></div>
+          <div class="fg2"><label>Voucher / Receipt No.</label><input type="text" id="e-vchr" placeholder="Voucher number"></div>
+          <div class="fg2 fcol2"><label>Description / Purpose</label><textarea id="e-desc" placeholder="Purpose of this expenditure…"></textarea></div>
         </div>
-        <div class="form-actions">
-          <button class="btn btn-red" id="exp-save-btn" onclick="saveExpenditure()">💾 Save Expenditure Record</button>
-          <button class="btn btn-ghost" onclick="clearExpenditure()">Clear Form</button>
+        <div class="f-actions">
+          <button class="btn btn-r" id="e-save-btn" onclick="saveExpenditure()">💾 Save Expenditure</button>
+          <button class="btn btn-g" onclick="clearExpenditure()">Clear</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">💸 This Month's Expenditure — <span id="exp-month-label"></span></div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Date</th><th>Type</th><th>Paid To</th><th>Approved By</th><th>Amount (₦)</th><th>Action</th></tr></thead>
-          <tbody id="exp-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">Loading…</td></tr></tbody>
+        <div class="card-ttl">💸 This Month's Expenditure — <span id="exp-mo-lbl"></span></div>
+        <div class="tbl-scroll"><table>
+          <thead><tr><th>Date</th><th>Type</th><th>Paid To</th><th>Approved By</th><th>Amount (₦)</th><th></th></tr></thead>
+          <tbody id="exp-tb"></tbody>
         </table></div>
-        <div style="margin-top:1rem;text-align:right;font-family:'Montserrat',sans-serif;font-size:.85rem;font-weight:800;color:var(--red);">Monthly Total: ₦<span id="exp-total">0.00</span></div>
+        <div style="text-align:right;margin-top:.8rem;font-family:'Montserrat',sans-serif;font-size:.83rem;font-weight:800;color:var(--red);">
+          Total: ₦<span id="exp-total">0.00</span>
+        </div>
       </div>
     </div>
 
     <!-- ALL TRANSACTIONS -->
     <div class="page" id="page-transactions">
-      <div class="sec-header"><div><h2>All Transactions</h2><p>Filter, view and print your records</p></div><button class="btn btn-ghost btn-sm" onclick="printPage()">🖨️ Print</button></div>
+      <div class="sec-hd"><div><h2>All Transactions</h2><p>Filter, view and print records</p></div><button class="btn btn-g btn-sm" onclick="window.print()">🖨️ Print</button></div>
       <div class="card">
-        <div class="filter-bar">
-          <div class="fg2"><label>From Date</label><input type="date" id="f-from"></div>
-          <div class="fg2"><label>To Date</label><input type="date" id="f-to"></div>
-          <div class="fg2"><label>Flow Type</label><select id="f-type" style="min-width:130px;"><option value="">All</option><option value="income">Income</option><option value="expenditure">Expenditure</option></select></div>
-          <button class="btn btn-purple btn-sm" onclick="filterTx()" style="align-self:flex-end;margin-bottom:.05rem;">Filter</button>
-          <button class="btn btn-ghost btn-sm" onclick="clearFilter()" style="align-self:flex-end;margin-bottom:.05rem;">Clear</button>
+        <div class="fbar">
+          <div class="fg2"><label>From</label><input type="date" id="f-from"></div>
+          <div class="fg2"><label>To</label><input type="date" id="f-to"></div>
+          <div class="fg2"><label>Type</label><select id="f-type"><option value="">All</option><option value="income">Income</option><option value="expenditure">Expenditure</option></select></div>
+          <button class="btn btn-p btn-sm" onclick="filterTx()">Filter</button>
+          <button class="btn btn-g btn-sm" onclick="clearFilter()">Clear</button>
         </div>
-        <div class="tbl-wrap"><table>
+        <div class="tbl-scroll"><table>
           <thead><tr><th>Date</th><th>Flow</th><th>Category</th><th>Description</th><th>Amount (₦)</th></tr></thead>
-          <tbody id="tx-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:2rem;">Loading…</td></tr></tbody>
+          <tbody id="tx-tb"></tbody>
         </table></div>
-        <div style="margin-top:1rem;display:flex;gap:2rem;justify-content:flex-end;font-family:'Montserrat',sans-serif;font-size:.82rem;font-weight:700;flex-wrap:wrap;">
-          <span style="color:var(--green);">Total Income: ₦<span id="tx-inc-total">0.00</span></span>
-          <span style="color:var(--red);">Total Expenditure: ₦<span id="tx-exp-total">0.00</span></span>
-          <span style="color:var(--purple);">Net Balance: ₦<span id="tx-net">0.00</span></span>
+        <div style="margin-top:.9rem;display:flex;gap:1.5rem;justify-content:flex-end;flex-wrap:wrap;font-family:'Montserrat',sans-serif;font-size:.78rem;font-weight:700;">
+          <span style="color:var(--green);">Income: ₦<span id="tx-inc">0.00</span></span>
+          <span style="color:var(--red);">Expenditure: ₦<span id="tx-exp">0.00</span></span>
+          <span style="color:var(--purple);">Net: ₦<span id="tx-net">0.00</span></span>
         </div>
       </div>
     </div>
 
     <!-- REPORTS -->
     <div class="page" id="page-reports">
-      <div class="sec-header"><div><h2>Branch Financial Report</h2><p>Monthly financial summary with charts</p></div><button class="btn btn-ghost btn-sm" onclick="printPage()">🖨️ Print Report</button></div>
-      <div class="filter-bar" style="margin-bottom:1.5rem;">
-        <div class="fg2"><label>Select Month</label><input type="month" id="r-month"></div>
-        <button class="btn btn-purple btn-sm" onclick="buildReport()" style="align-self:flex-end;margin-bottom:.05rem;">Generate</button>
+      <div class="sec-hd"><div><h2>Branch Financial Report</h2><p>Monthly summary with charts</p></div><button class="btn btn-g btn-sm" onclick="window.print()">🖨️ Print</button></div>
+      <div class="fbar" style="margin-bottom:1.3rem;">
+        <div class="fg2"><label>Month</label><input type="month" id="r-month"></div>
+        <button class="btn btn-p btn-sm" onclick="buildReport()">Generate</button>
       </div>
-      <div class="stat-grid" id="report-stats"></div>
-      <div class="charts-grid">
-        <div class="card"><div class="card-title">📊 Weekly Income Trend</div><div class="chart-wrap"><canvas id="rLineChart"></canvas></div></div>
-        <div class="card"><div class="card-title">🥧 Expenditure Breakdown</div><div class="chart-wrap"><canvas id="rPieChart"></canvas></div></div>
+      <div class="stat-grid" id="r-stats"></div>
+      <div class="charts-row">
+        <div class="card"><div class="card-ttl">📊 Weekly Income Trend</div><div class="ch-wrap"><canvas id="rLine"></canvas></div></div>
+        <div class="card"><div class="card-ttl">🥧 Expenditure Breakdown</div><div class="ch-wrap"><canvas id="rPie"></canvas></div></div>
       </div>
       <div class="card">
-        <div class="card-title">📄 Income Detail</div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>Date</th><th>Type</th><th>Event/Service</th><th>Received By</th><th>Amount (₦)</th></tr></thead>
-          <tbody id="r-income-tbody"></tbody>
-          <tfoot><tr><td colspan="4" style="text-align:right;font-weight:700;padding:.75rem 1rem;font-family:'Montserrat',sans-serif;font-size:.8rem;color:var(--green);">TOTAL INCOME</td><td style="font-weight:800;color:var(--green);padding:.75rem 1rem;font-family:'Montserrat',sans-serif;">₦<span id="r-inc-sum">0.00</span></td></tr></tfoot>
+        <div class="card-ttl">📄 Income Detail</div>
+        <div class="tbl-scroll"><table>
+          <thead><tr><th>Date</th><th>Type</th><th>Event</th><th>Received By</th><th>Amount (₦)</th></tr></thead>
+          <tbody id="r-inc-tb"></tbody>
+          <tfoot><tr><td colspan="4" style="text-align:right;font-family:'Montserrat',sans-serif;font-size:.75rem;font-weight:700;color:var(--green);">TOTAL INCOME</td><td style="font-family:'Montserrat',sans-serif;font-weight:800;color:var(--green);">₦<span id="r-inc-sum">0.00</span></td></tr></tfoot>
         </table></div>
       </div>
       <div class="card">
-        <div class="card-title">📄 Expenditure Detail</div>
-        <div class="tbl-wrap"><table>
+        <div class="card-ttl">📄 Expenditure Detail</div>
+        <div class="tbl-scroll"><table>
           <thead><tr><th>Date</th><th>Type</th><th>Paid To</th><th>Approved By</th><th>Amount (₦)</th></tr></thead>
-          <tbody id="r-exp-tbody"></tbody>
-          <tfoot><tr><td colspan="4" style="text-align:right;font-weight:700;padding:.75rem 1rem;font-family:'Montserrat',sans-serif;font-size:.8rem;color:var(--red);">TOTAL EXPENDITURE</td><td style="font-weight:800;color:var(--red);padding:.75rem 1rem;font-family:'Montserrat',sans-serif;">₦<span id="r-exp-sum">0.00</span></td></tr></tfoot>
+          <tbody id="r-exp-tb"></tbody>
+          <tfoot><tr><td colspan="4" style="text-align:right;font-family:'Montserrat',sans-serif;font-size:.75rem;font-weight:700;color:var(--red);">TOTAL EXPENDITURE</td><td style="font-family:'Montserrat',sans-serif;font-weight:800;color:var(--red);">₦<span id="r-exp-sum">0.00</span></td></tr></tfoot>
         </table></div>
       </div>
     </div>
 
     <!-- REGIONAL -->
     <div class="page" id="page-regional">
-      <div class="sec-header"><div><h2>Regional Overview</h2><p>Consolidated financial data — all 7 branches</p></div><button class="btn btn-ghost btn-sm" onclick="printPage()">🖨️ Print</button></div>
-      <div class="filter-bar" style="margin-bottom:1.5rem;">
-        <div class="fg2"><label>Select Month</label><input type="month" id="reg-month"></div>
-        <button class="btn btn-purple btn-sm" onclick="buildRegional()" style="align-self:flex-end;margin-bottom:.05rem;">Refresh</button>
+      <div class="sec-hd"><div><h2>Regional Overview</h2><p>All 7 branches consolidated</p></div><button class="btn btn-g btn-sm" onclick="window.print()">🖨️ Print</button></div>
+      <div class="fbar" style="margin-bottom:1.3rem;">
+        <div class="fg2"><label>Month</label><input type="month" id="reg-month"></div>
+        <button class="btn btn-p btn-sm" onclick="buildRegional()">Refresh</button>
       </div>
       <div class="stat-grid" id="reg-stats"></div>
-      <div class="branch-cards" id="branch-cards"></div>
+      <div class="br-grid" id="br-grid"></div>
       <div class="card">
-        <div class="card-title">🏆 All Transactions — All Branches</div>
-        <div class="tbl-wrap"><table>
+        <div class="card-ttl">🏆 All Transactions — All Branches</div>
+        <div class="tbl-scroll"><table>
           <thead><tr><th>Date</th><th>Branch</th><th>Flow</th><th>Category</th><th>Description</th><th>Amount (₦)</th></tr></thead>
-          <tbody id="reg-tx-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;">Loading…</td></tr></tbody>
+          <tbody id="reg-tb"></tbody>
         </table></div>
       </div>
     </div>
 
     <!-- SETUP GUIDE -->
     <div class="page" id="page-setup">
-      <div class="sec-header"><div><h2>Firebase Setup Guide</h2><p>Connect your portal to Firebase for real-time multi-branch data</p></div></div>
-      <div class="setup-guide">
-        <h3>🔥 How to Connect Firebase (Step-by-Step)</h3>
-        <div class="setup-step"><div class="step-num">1</div><div class="step-content"><h4>Create a Firebase Project</h4><p>Go to <strong>console.firebase.google.com</strong> → Click "Add project" → Name it <strong>mfm-akure-portal</strong> → Follow the setup wizard → Disable Google Analytics (not needed).</p></div></div>
-        <div class="setup-step"><div class="step-num">2</div><div class="step-content"><h4>Get Your Firebase Config</h4><p>In your project dashboard → Click the web icon (&lt;/&gt;) → Register your app as <strong>mfm-portal</strong> → Copy the <code>firebaseConfig</code> object shown. It contains your <code>apiKey</code>, <code>authDomain</code>, <code>projectId</code>, etc.</p></div></div>
-        <div class="setup-step"><div class="step-num">3</div><div class="step-content"><h4>Update This File</h4><p>Open <code>mfm-financial-portal.html</code> in a text editor (Notepad++, VS Code) → Find the section labelled <code>🔥 FIREBASE CONFIGURATION</code> → Replace all <code>YOUR_API_KEY</code>, <code>YOUR_PROJECT_ID</code> etc. with your actual Firebase values.</p></div></div>
-        <div class="setup-step"><div class="step-num">4</div><div class="step-content"><h4>Enable Firestore Database</h4><p>In Firebase Console → "Firestore Database" → "Create database" → Choose <strong>Production mode</strong> → Select a region close to Nigeria (e.g. <code>europe-west1</code>) → Click Enable.</p></div></div>
-        <div class="setup-step"><div class="step-num">5</div><div class="step-content"><h4>Set Firestore Security Rules</h4><p>In Firestore → Rules tab → Replace the rules with the rules below to allow authenticated users to read/write:</p>
-          <code>rules_version = '2';<br>service cloud.firestore {<br>&nbsp;&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;&nbsp;&nbsp;match /transactions/{doc} {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</code>
+      <div class="sec-hd"><div><h2>Firebase Setup Guide</h2><p>Connect for real-time multi-branch data</p></div></div>
+      <div class="setup-box">
+        <h3>🔥 How to Connect Firebase (Step by Step)</h3>
+        <div class="s-step"><div class="s-num">1</div><div class="s-body"><h4>Create Firebase Project</h4><p>Go to <strong>console.firebase.google.com</strong> → "Add project" → Name it <strong>mfm-akure-portal</strong> → Disable Google Analytics → Create project.</p></div></div>
+        <div class="s-step"><div class="s-num">2</div><div class="s-body"><h4>Get Your Config Credentials</h4><p>Dashboard → click the <strong>&lt;/&gt;</strong> web icon → Register app as <strong>mfm-portal</strong> → Copy the <code>firebaseConfig</code> object shown.</p></div></div>
+        <div class="s-step"><div class="s-num">3</div><div class="s-body"><h4>Paste Credentials into This File</h4><p>Open this HTML file in Notepad++ → Press Ctrl+F → Search for <code>PASTE_YOUR_FIREBASE_CONFIG_HERE</code> → Replace the entire placeholder object with your real config.</p></div></div>
+        <div class="s-step"><div class="s-num">4</div><div class="s-body"><h4>Enable Firestore Database</h4><p>Firebase Console → Firestore Database → Create database → Production mode → Region: <code>europe-west1</code> → Enable.</p></div></div>
+        <div class="s-step"><div class="s-num">5</div><div class="s-body"><h4>Set Firestore Rules</h4><p>Firestore → Rules tab → Replace all content with:</p>
+          <code>rules_version = '2';<br>service cloud.firestore {<br>&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;match /transactions/{doc} {<br>&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null;<br>&nbsp;&nbsp;}<br>&nbsp;}<br>}</code><p>Click <strong>Publish</strong>.</p>
         </div></div>
-        <div class="setup-step"><div class="step-num">6</div><div class="step-content"><h4>Enable Firebase Authentication</h4><p>In Firebase Console → "Authentication" → "Get started" → "Email/Password" → Enable it → Save.</p></div></div>
-        <div class="setup-step"><div class="step-num">7</div><div class="step-content"><h4>Create User Accounts for Each Branch</h4><p>In Firebase Authentication → "Add user" → Create one account per branch using these emails (set your own passwords):</p>
-          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="721a03321f141f130013001d1f1b5c1d0015">[email&#160;protected]</a></code>
-          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="751a1e101c1f10170035181318140714071a181c5b1a0712">[email&#160;protected]</a></code>
-          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="9cf5f6f3f7fddcf1faf1fdeefdeef3f1f5b2f3eefb">[email&#160;protected]</a></code>
-          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="681b00090f091a0128050e05091a091a07050146071a0f">[email&#160;protected]</a></code>
-          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="81e0f2f6e0efe8c1ece7ece0f3e0f3eeece8afeef3e6">[email&#160;protected]</a></code>
-          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="18777a7971747d58757e75796a796a77757136776a7f">[email&#160;protected]</a></code>
-          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7b12111a0b143b161d161a091a091416125514091c">[email&#160;protected]</a></code>
-          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="056461686c6b45686368647764776a686c2b6a7762">[email&#160;protected]</a></code>
+        <div class="s-step"><div class="s-num">6</div><div class="s-body"><h4>Enable Firebase Authentication</h4><p>Authentication → Get started → Email/Password → Enable → Save.</p></div></div>
+        <div class="s-step"><div class="s-num">7</div><div class="s-body"><h4>Create Branch User Accounts</h4><p>Authentication → Users → Add user for each branch:</p>
+          <code>hq@mfmararomi.org</code><code>okeijebu@mfmararomi.org</code><code>ijoka@mfmararomi.org</code><code>shagari@mfmararomi.org</code><code>aswani@mfmararomi.org</code><code>obaile@mfmararomi.org</code><code>ijapo@mfmararomi.org</code><code>admin@mfmararomi.org</code>
         </div></div>
-        <div class="setup-step"><div class="step-num">8</div><div class="step-content"><h4>Upload to Your Host &amp; Test</h4><p>Upload <code>mfm-financial-portal.html</code> to your web host (QServers, Hostinger, WhoGoHost etc.) → Log in from two differ
+        <div class="s-step"><div class="s-num">8</div><div class="s-body"><h4>Add GitHub Pages Domain to Firebase</h4><p>Authentication → Settings → Authorised domains → Add domain → type your GitHub Pages URL e.g. <code>yourusername.github.io</code> → Add.</p></div></div>
+        <div class="s-step"><div class="s-num">9</div><div class="s-body"><h4>Update Branch Emails in the HTML</h4><p>In the HTML file search for <code>BRANCH_USERS</code> and update the email addresses to match exactly what you created in Firebase Authentication.</p></div></div>
+      </div>
+      <div class="card" style="border-left:4px solid var(--green);">
+        <div class="card-ttl">✅ Right Now — Portal Works in Local Mode</div>
+        <p style="font-size:.82rem;color:var(--muted);line-height:1.7;">The portal currently runs in <strong>local storage mode</strong> — all data is saved in your browser and works fully offline. Once you add Firebase credentials, it automatically switches to <strong>cloud mode</strong> where all branches share data in real time. Your local data will not be lost during the switch.</p>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+</div><!-- /app -->
+
+<script>
+// ═══════════════════════════════════════════════════
+//  ⚙️  CONFIGURATION — CHANGE THESE TO YOUR SETTINGS
+// ═══════════════════════════════════════════════════
+
+// ── LOCAL USERS (login works without Firebase) ────
+// Format: branchId: { user:'username', pass:'password', role:'accountant'|'admin' }
+const LOCAL_USERS = {
+  HQ:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
+  B1:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
+  B2:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
+  B3:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
+  B4:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
+  B5:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
+  B6:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
+  ADMIN: { user:'admin',      pass:'admin2025', role:'admin'       },
+};
+
+// ── BRANCH INFO ────────────────────────────────────
+const BRANCHES = {
+  HQ:    { name:'Regional HQ — SW 58 Araromi', short:'Main Assembly' },
+  B1:    { name:'MFM Oke-Ijebu Assembly',       short:'Oke-Ijebu'    },
+  B2:    { name:'MFM Ijoka Assembly',           short:'Ijoka'        },
+  B3:    { name:'MFM Shagari Assembly',         short:'Shagari'      },
+  B4:    { name:'MFM Aswani Assembly',          short:'Aswani'       },
+  B5:    { name:'MFM Oba-Ile Assembly',         short:'Oba-Ile'      },
+  B6:    { name:'MFM Ijapo Assembly',           short:'Ijapo'        },
+  ADMIN: { name:'Regional Administrator',       short:'All Branches' },
+};
+const ALL_IDS = ['HQ','B1','B2','B3','B4','B5','B6'];
+
+// ── FIREBASE CONFIG ────────────────────────────────
+// Paste your Firebase config object here to enable
+// cloud/real-time mode. Leave as null to use local mode.
+// Example:
+// const FB_CONFIG = {
+//   apiKey: "AIzaSy...",
+//   authDomain: "mfm-akure-portal.firebaseapp.com",
+//   projectId: "mfm-akure-portal",
+//   storageBucket: "mfm-akure-portal.appspot.com",
+//   messagingSenderId: "123456789",
+//   appId: "1:123456789:web:abc123"
+// };
+const FB_CONFIG = null; // ← REPLACE null WITH YOUR CONFIG TO GO LIVE
+
+// ─────────────────────────────────────────────────
+//  DO NOT EDIT BELOW THIS LINE
+// ─────────────────────────────────────────────────
+
+let CU = null; // current user session
+let DB = null; // Firestore instance (if Firebase connected)
+let fbMode = false;
+let barC=null, dnutC=null, rLineC=null, rPieC=null;
+
+// ── TYPE LABELS ────────────────────────────────────
+const T = {
+  tithe:'Tithe','offering':'Sunday Offering','offering-mid':'Midweek Offering',
+  donation:'Donation',vow:'Vow/Pledge',thanksgiving:'Thanksgiving',
+  harvest:'Harvest',project:'Project Offering',other:'Other Income',
+  'remittance-hq':'HQ Remittance','remittance-region':'Region Remittance',
+  'remittance-province':'Province Remittance',salary:'Salary',
+  allowance:'Allowance',honorarium:'Honorarium',electricity:'Electricity',
+  maintenance:'Maintenance',stationery:'Stationery',transport:'Transport',
+  welfare:'Welfare',evangelism:'Evangelism',program:'Programme Exp.',
+  'other-exp':'Other Expense'
+};
+function tLbl(t){ return T[t]||t||'—'; }
+function tCls(t){
+  if(!t) return 'other';
+  if(t==='tithe') return 'tithe';
+  if(t.startsWith('offering')) return 'offering';
+  if(t==='donation') return 'donation';
+  if(t==='vow') return 'vow';
+  if(t.startsWith('remittance')) return 'remittance';
+  if(['salary','allowance','honorarium'].includes(t)) return 'salary';
+  if(['electricity','maintenance','stationery','transport','program'].includes(t)) return 'running';
+  if(['welfare','evangelism'].includes(t)) return 'allowance';
+  return 'other';
+}
+
+// ── FORMATTING ─────────────────────────────────────
+function fmt(n){ return Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtK(n){ if(n>=1e6) return(n/1e6).toFixed(1)+'M'; if(n>=1e3) return(n/1e3).toFixed(0)+'K'; return n; }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function getLast6(){ const m=[],n=new Date(); for(let i=5;i>=0;i--){const d=new Date(n.getFullYear(),n.getMonth()-i,1);m.push(d.toISOString().slice(0,7));} return m; }
+function destroyC(c){ if(c) try{c.destroy();}catch(e){} }
+
+// ── LOCAL STORAGE DATA ─────────────────────────────
+function lsGet(){ try{ return JSON.parse(localStorage.getItem('mfm_txns')||'[]'); }catch(e){return[];} }
+function lsSave(d){ localStorage.setItem('mfm_txns', JSON.stringify(d)); }
+function lsAdd(rec){ const d=lsGet(); d.push(rec); lsSave(d); }
+function lsDel(id){ lsSave(lsGet().filter(t=>t.id!==id)); }
+
+// ── GET TRANSACTIONS ───────────────────────────────
+async function getTxns(branchId){
+  if(fbMode && DB){
+    try {
+      const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const snap = await getDocs(collection(DB,'transactions'));
+      let docs = snap.docs.map(d=>({id:d.id,...d.data()}));
+      if(branchId && branchId!=='ADMIN') docs=docs.filter(t=>t.branch===branchId);
+      return docs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    } catch(e){ console.error('Firestore read:',e); return []; }
+  }
+  // Local mode
+  let d = lsGet();
+  if(branchId && branchId!=='ADMIN') d=d.filter(t=>t.branch===branchId);
+  return d.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+
+async function addTxn(rec){
+  if(fbMode && DB){
+    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await addDoc(collection(DB,'transactions'),{...rec,createdAt:serverTimestamp()});
+  } else {
+    lsAdd(rec);
+  }
+}
+
+async function delTxn(id){
+  if(fbMode && DB){
+    const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await deleteDoc(doc(DB,'transactions',id));
+  } else {
+    lsDel(id);
+  }
+}
+
+// ── FIREBASE INIT (optional) ───────────────────────
+async function initFirebase(){
+  if(!FB_CONFIG) return false;
+  try {
+    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const { getFirestore }  = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const app = initializeApp(FB_CONFIG);
+    DB = getFirestore(app);
+    fbMode = true;
+    console.log('✅ Firebase connected');
+    // Update live dot
+    document.querySelector('.tb-dot').style.background='#2196F3';
+    return true;
+  } catch(e){
+    console.error('Firebase init failed:',e);
+    showBanner('⚠️ Firebase connection failed: '+e.message+' — Running in local mode.');
+    return false;
+  }
+}
+
+function showBanner(msg){
+  const b=document.getElementById('fb-banner');
+  b.textContent=msg; b.style.display='block';
+}
+
+// ══════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════
+function doLogin(){
+  const branch = document.getElementById('l-branch').value;
+  const user   = document.getElementById('l-user').value.trim().toLowerCase();
+  const pass   = document.getElementById('l-pass').value;
+  const err    = document.getElementById('l-err');
+  err.style.display='none';
+
+  if(!branch){ showErr('Please select your branch.'); return; }
+  if(!user)  { showErr('Please enter your username.'); return; }
+  if(!pass)  { showErr('Please enter your password.'); return; }
+
+  const creds = LOCAL_USERS[branch];
+  if(!creds){ showErr('Branch not found. Please contact admin.'); return; }
+  if(creds.user!==user || creds.pass!==pass){ showErr('Invalid username or password. Please try again.'); return; }
+
+  // ✅ Login successful
+  CU = { branch, user, role:creds.role };
+  startApp();
+
+  function showErr(msg){ err.textContent=msg; err.style.display='block'; }
+}
+
+function doLogout(){
+  CU=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('l-pass').value='';
+}
+window.doLogin  = doLogin;
+window.doLogout = doLogout;
+
+// ══════════════════════════════════════════════════
+//  APP START
+// ══════════════════════════════════════════════════
+async function startApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  const b = BRANCHES[CU.branch];
+  document.getElementById('sb-bname').textContent  = b.name;
+  document.getElementById('sb-bshort').textContent = b.short;
+  document.getElementById('sb-uname').textContent  = CU.user.toUpperCase();
+  document.getElementById('sb-urole').textContent  = CU.role==='admin'?'Regional Administrator':'Branch Accountant';
+  document.getElementById('tb-date').textContent   = new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  if(CU.role==='admin') document.getElementById('sb-reg').style.display='flex';
+  const today=new Date().toISOString().split('T')[0];
+  const mo=today.slice(0,7);
+  ['i-date','e-date'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=today; });
+  ['r-month','reg-month'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=mo; });
+  document.getElementById('inc-mo-lbl').textContent=new Date().toLocaleString('default',{month:'long',year:'numeric'});
+  document.getElementById('exp-mo-lbl').textContent=new Date().toLocaleString('default',{month:'long',year:'numeric'});
+  // Try Firebase
+  await initFirebase();
+  // Load dashboard
+  loadDashboard();
+}
+
+// ══════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════
+function nav(id, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  const titles={dashboard:'Dashboard',income:'Record Income',expenditure:'Record Expenditure',transactions:'All Transactions',reports:'Branch Report',regional:'Regional Overview',setup:'Firebase Setup'};
+  document.getElementById('tb-title').textContent=titles[id]||id;
+  closeSidebar();
+  if(id==='dashboard')   loadDashboard();
+  if(id==='income')      loadIncList();
+  if(id==='expenditure') loadExpList();
+  if(id==='transactions')loadAllTx();
+  if(id==='reports')     buildReport();
+  if(id==='regional')    buildRegional();
+}
+window.nav=nav;
+
+// ── SIDEBAR TOGGLE ─────────────────────────────────
+function openSidebar(){
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+  document.body.style.overflow='hidden';
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  document.body.style.overflow='';
+}
+window.openSidebar=openSidebar;
+window.closeSidebar=closeSidebar;
+window.addEventListener('resize',()=>{ if(window.innerWidth>768) closeSidebar(); });
+
+// ══════════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════════
+async function loadDashboard(){
+  const br  = CU.role==='admin'?null:CU.branch;
+  const all = await getTxns(br);
+  const mo  = new Date().toISOString().slice(0,7);
+  const mth = all.filter(t=>t.date&&t.date.startsWith(mo));
+  const inc = mth.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
+  const exp = mth.filter(t=>t.flow==='expenditure').reduce((s,t)=>s+Number(t.amount),0);
+  const net = inc-exp;
+
+  document.getElementById('stat-grid').innerHTML=`
+    <div class="stat-card c-purple"><div class="sc-ico">💰</div><div class="sc-lbl">Income This Month</div><div class="sc-val c-purple">₦${fmt(inc)}</div><div class="sc-sub">All income types</div></div>
+    <div class="stat-card c-red"><div class="sc-ico">💸</div><div class="sc-lbl">Expenditure This Month</div><div class="sc-val c-red">₦${fmt(exp)}</div><div class="sc-sub">All expense types</div></div>
+    <div class="stat-card ${net>=0?'c-green':'c-red'}"><div class="sc-ico">${net>=0?'✅':'⚠️'}</div><div class="sc-lbl">Net Balance</div><div class="sc-val ${net>=0?'c-green':'c-red'}">₦${fmt(net)}</div><div class="sc-sub">${net>=0?'Surplus':'Deficit'}</div></div>
+    <div class="stat-card c-gold"><div class="sc-ico">📋</div><div class="sc-lbl">Records This Month</div><div class="sc-val c-gold">${mth.length}</div><div class="sc-sub">Total entries</div></div>`;
+
+  // Bar chart
+  const months=getLast6();
+  const bI=months.map(m=>all.filter(t=>t.flow==='income'&&t.date&&t.date.startsWith(m)).reduce((s,t)=>s+Number(t.amount),0));
+  const bE=months.map(m=>all.filter(t=>t.flow==='expenditure'&&t.date&&t.date.startsWith(m)).reduce((s,t)=>s+Number(t.amount),0));
+  const bL=months.map(m=>{const[y,mo]=m.split('-');return new Date(y,mo-1).toLocaleString('default',{month:'short',year:'2-digit'});});
+  destroyC(barC);
+  barC=new Chart(document.getElementById('barChart'),{type:'bar',data:{labels:bL,datasets:[
+    {label:'Income',data:bI,backgroundColor:'rgba(91,31,162,.72)',borderColor:'#5B1FA2',borderWidth:1.5,borderRadius:4},
+    {label:'Expenditure',data:bE,backgroundColor:'rgba(204,0,0,.62)',borderColor:'#CC0000',borderWidth:1.5,borderRadius:4}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{family:'Montserrat',size:10},boxWidth:10}}},scales:{y:{ticks:{callback:v=>'₦'+fmtK(v),font:{family:'Montserrat',size:9}},grid:{color:'rgba(0,0,0,.05)'}},x:{ticks:{font:{family:'Montserrat',size:9}}}}}});
+
+  // Doughnut
+  const cats={tithe:0,offering:0,donation:0,vow:0,thanksgiving:0,other:0};
+  mth.filter(t=>t.flow==='income').forEach(t=>{
+    if(t.type==='tithe') cats.tithe+=Number(t.amount);
+    else if(t.type&&t.type.startsWith('offering')) cats.offering+=Number(t.amount);
+    else if(t.type==='donation') cats.donation+=Number(t.amount);
+    else if(t.type==='vow') cats.vow+=Number(t.amount);
+    else if(t.type==='thanksgiving') cats.thanksgiving+=Number(t.amount);
+    else cats.other+=Number(t.amount);
+  });
+  destroyC(dnutC);
+  dnutC=new Chart(document.getElementById('doughnutChart'),{type:'doughnut',data:{
+    labels:['Tithe','Offering','Donation','Vow','Thanksgiving','Other'],
+    datasets:[{data:Object.values(cats),backgroundColor:['#5B1FA2','#C9940A','#2563EB','#EC4899','#16A34A','#9CA3AF'],borderWidth:2,borderColor:'#fff'}]
+  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Montserrat',size:9},boxWidth:10,padding:8}}}}});
+
+  // Recent table
+  const recent=all.slice(0,10);
+  document.getElementById('recent-tb').innerHTML=recent.length?recent.map(t=>`<tr>
+    <td>${t.date||'—'}</td>
+    <td style="font-size:.72rem;font-family:'Montserrat',sans-serif;font-weight:600;color:var(--purple);">${BRANCHES[t.branch]?.short||t.branch}</td>
+    <td><span class="badge ${t.flow}">${t.flow==='income'?'Income':'Exp.'}</span></td>
+    <td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td>
+    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.desc||'—'}</td>
+    <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:${t.flow==='income'?'var(--green)':'var(--red)'};">${t.flow==='income'?'+':'-'}₦${fmt(Number(t.amount))}</td>
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;font-style:italic;">No transactions yet. Start by recording income or expenditure.</td></tr>';
+}
+
+// ══════════════════════════════════════════════════
+//  INCOME
+// ══════════════════════════════════════════════════
+async function saveIncome(){
+  const date=gv('i-date'), type=gv('i-type'), amount=parseFloat(gv('i-amount'));
+  if(!date||!type||!amount||amount<=0){ showA('inc-err'); return; }
+  const btn=document.getElementById('i-save-btn');
+  btn.textContent='Saving…'; btn.disabled=true;
+  try {
+    await addTxn({ id:uid(), branch:CU.branch, flow:'income', type, amount, date,
+      receiver:gv('i-rcvr'), event:gv('i-event'), receipt:gv('i-rcpt'), desc:gv('i-desc') });
+    showA('inc-ok'); clearIncome(); loadIncList();
+  } catch(e){ showA('inc-err'); console.error(e); }
+  btn.textContent='💾 Save Income'; btn.disabled=false;
+}
+async function loadIncList(){
+  const mo=new Date().toISOString().slice(0,7);
+  const rows=(await getTxns(CU.branch)).filter(t=>t.flow==='income'&&t.date&&t.date.startsWith(mo));
+  document.getElementById('inc-tb').innerHTML=rows.length?rows.map(t=>`<tr>
+    <td>${t.date}</td><td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td>
+    <td>${t.event||'—'}</td><td>${t.receiver||'—'}</td>
+    <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:var(--green);">₦${fmt(Number(t.amount))}</td>
+    <td><button class="btn btn-g btn-sm" onclick="delRecord('${t.id}','inc')">🗑️</button></td>
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.5rem;font-style:italic;">No income records this month</td></tr>';
+  document.getElementById('inc-total').textContent=fmt(rows.reduce((s,t)=>s+Number(t.amount),0));
+}
+function clearIncome(){
+  ['i-type','i-amount','i-rcvr','i-event','i-rcpt','i-desc'].forEach(id=>sv(id,''));
+  sv('i-date',new Date().toISOString().split('T')[0]);
+}
+window.saveIncome=saveIncome; window.clearIncome=clearIncome;
+
+// ══════════════════════════════════════════════════
+//  EXPENDITURE
+// ══════════════════════════════════════════════════
+async function saveExpenditure(){
+  const date=gv('e-date'), type=gv('e-type'), amount=parseFloat(gv('e-amount'));
+  if(!date||!type||!amount||amount<=0){ showA('exp-err'); return; }
+  const btn=document.getElementById('e-save-btn');
+  btn.textContent='Saving…'; btn.disabled=true;
+  try {
+    await addTxn({ id:uid(), branch:CU.branch, flow:'expenditure', type, amount, date,
+      beneficiary:gv('e-benef'), approved:gv('e-appr'), voucher:gv('e-vchr'), desc:gv('e-desc') });
+    showA('exp-ok'); clearExpenditure(); loadExpList();
+  } catch(e){ showA('exp-err'); console.error(e); }
+  btn.textContent='💾 Save Expenditure'; btn.disabled=false;
+}
+async function loadExpList(){
+  const mo=new Date().toISOString().slice(0,7);
+  const rows=(await getTxns(CU.branch)).filter(t=>t.flow==='expenditure'&&t.date&&t.date.startsWith(mo));
+  document.getElementById('exp-tb').innerHTML=rows.length?rows.map(t=>`<tr>
+    <td>${t.date}</td><td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td>
+    <td>${t.beneficiary||'—'}</td><td>${t.approved||'—'}</td>
+    <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:var(--red);">₦${fmt(Number(t.amount))}</td>
+    <td><button class="btn btn-g btn-sm" onclick="delRecord('${t.id}','exp')">🗑️</button></td>
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.5rem;font-style:italic;">No expenditure records this month</td></tr>';
+  document.getElementById('exp-total').textContent=fmt(rows.reduce((s,t)=>s+Number(t.amount),0));
+}
+function clearExpenditure(){
+  ['e-type','e-amount','e-benef','e-appr','e-vchr','e-desc'].forEach(id=>sv(id,''));
+  sv('e-date',new Date().toISOString().split('T')[0]);
+}
+window.saveExpenditure=saveExpenditure; window.clearExpenditure=clearExpenditure;
+
+// ══════════════════════════════════════════════════
+//  ALL TRANSACTIONS
+// ══════════════════════════════════════════════════
+async function loadAllTx(filter={}){
+  const br=CU.role==='admin'?null:CU.branch;
+  let rows=await getTxns(br);
+  if(filter.from) rows=rows.filter(t=>t.date>=filter.from);
+  if(filter.to)   rows=rows.filter(t=>t.date<=filter.to);
+  if(filter.type) rows=rows.filter(t=>t.flow===filter.type);
+  document.getElementById('tx-tb').innerHTML=rows.length?rows.map(t=>`<tr>
+    <td>${t.date||'—'}</td>
+    <td><span class="badge ${t.flow}">${t.flow==='income'?'Income':'Exp.'}</span></td>
+    <td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td>
+    <td>${t.desc||'—'}</td>
+    <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:${t.flow==='income'?'var(--green)':'var(--red)'};">${t.flow==='income'?'+':'-'}₦${fmt(Number(t.amount))}</td>
+  </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:2rem;font-style:italic;">No transactions found</td></tr>';
+  const iS=rows.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
+  const eS=rows.filter(t=>t.flow==='expenditure').reduce((s,t)=>s+Number(t.amount),0);
+  document.getElementById('tx-inc').textContent=fmt(iS);
+  document.getElementById('tx-exp').textContent=fmt(eS);
+  const net=document.getElementById('tx-net');
+  net.textContent=fmt(iS-eS);
+  net.style.color=(iS-eS)>=0?'var(--green)':'var(--red)';
+}
+function filterTx(){ loadAllTx({from:gv('f-from'),to:gv('f-to'),type:gv('f-type')}); }
+function clearFilter(){ ['f-from','f-to','f-type'].forEach(id=>sv(id,'')); loadAllTx(); }
+window.loadAllTx=loadAllTx; window.filterTx=filterTx; window.clearFilter=clearFilter;
+
+// ══════════════════════════════════════════════════
+//  REPORTS
+// ══════════════════════════════════════════════════
+async function buildReport(){
+  const mo=gv('r-month')||new Date().toISOString().slice(0,7);
+  const br=CU.role==='admin'?null:CU.branch;
+  const all=await getTxns(br);
+  const mth=all.filter(t=>t.date&&t.date.startsWith(mo));
+  const iR=mth.filter(t=>t.flow==='income');
+  const eR=mth.filter(t=>t.flow==='expenditure');
+  const tI=iR.reduce((s,t)=>s+Number(t.amount),0);
+  const tE=eR.reduce((s,t)=>s+Number(t.amount),0);
+  const net=tI-tE;
+  document.getElementById('r-stats').innerHTML=`
+    <div class="stat-card c-purple"><div class="sc-ico">💰</div><div class="sc-lbl">Total Income</div><div class="sc-val c-purple">₦${fmt(tI)}</div></div>
+    <div class="stat-card c-red"><div class="sc-ico">💸</div><div class="sc-lbl">Total Expenditure</div><div class="sc-val c-red">₦${fmt(tE)}</div></div>
+    <div class="stat-card ${net>=0?'c-green':'c-red'}"><div class="sc-ico">${net>=0?'📈':'📉'}</div><div class="sc-lbl">Net Balance</div><div class="sc-val ${net>=0?'c-green':'c-red'}">₦${fmt(net)}</div></div>
+    <div class="stat-card c-gold"><div class="sc-ico">📑</div><div class="sc-lbl">Total Records</div><div class="sc-val c-gold">${mth.length}</div></div>`;
+  const wks=['Wk 1','Wk 2','Wk 3','Wk 4'];
+  const wI=[0,0,0,0],wE=[0,0,0,0];
+  iR.forEach(t=>{const w=Math.min(Math.floor((new Date(t.date).getDate()-1)/7),3);wI[w]+=Number(t.amount);});
+  eR.forEach(t=>{const w=Math.min(Math.floor((new Date(t.date).getDate()-1)/7),3);wE[w]+=Number(t.amount);});
+  destroyC(rLineC);
+  rLineC=new Chart(document.getElementById('rLine'),{type:'line',data:{labels:wks,datasets:[
+    {label:'Income',data:wI,borderColor:'#5B1FA2',backgroundColor:'rgba(91,31,162,.1)',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'#5B1FA2'},
+    {label:'Expenditure',data:wE,borderColor:'#CC0000',backgroundColor:'rgba(204,0,0,.08)',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'#CC0000'}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'Montserrat',size:10},boxWidth:10}}},scales:{y:{ticks:{callback:v=>'₦'+fmtK(v),font:{family:'Montserrat',size:9}}}}}});
+  const eC={};
+  eR.forEach(t=>{const k=tLbl(t.type);eC[k]=(eC[k]||0)+Number(t.amount);});
+  destroyC(rPieC);
+  if(Object.keys(eC).length){
+    rPieC=new Chart(document.getElementById('rPie'),{type:'pie',data:{labels:Object.keys(eC),datasets:[{data:Object.values(eC),backgroundColor:['#CC0000','#5B1FA2','#C9940A','#16A34A','#2563EB','#EC4899','#6B7280','#D97706'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Montserrat',size:9},boxWidth:10,padding:7}}}}});
+  }
+  document.getElementById('r-inc-tb').innerHTML=iR.map(t=>`<tr><td>${t.date}</td><td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td><td>${t.event||'—'}</td><td>${t.receiver||'—'}</td><td style="font-weight:700;color:var(--green);font-family:'Montserrat',sans-serif;">₦${fmt(Number(t.amount))}</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;font-style:italic;">No income records</td></tr>';
+  document.getElementById('r-inc-sum').textContent=fmt(tI);
+  document.getElementById('r-exp-tb').innerHTML=eR.map(t=>`<tr><td>${t.date}</td><td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td><td>${t.beneficiary||'—'}</td><td>${t.approved||'—'}</td><td style="font-weight:700;color:var(--red);font-family:'Montserrat',sans-serif;">₦${fmt(Number(t.amount))}</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;font-style:italic;">No expenditure records</td></tr>';
+  document.getElementById('r-exp-sum').textContent=fmt(tE);
+}
+window.buildReport=buildReport;
+
+// ══════════════════════════════════════════════════
+//  REGIONAL
+// ══════════════════════════════════════════════════
+async function buildRegional(){
+  const mo=gv('reg-month')||new Date().toISOString().slice(0,7);
+  const all=await getTxns(null);
+  const mth=all.filter(t=>t.date&&t.date.startsWith(mo));
+  const tI=mth.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
+  const tE=mth.filter(t=>t.flow==='expenditure').reduce((s,t)=>s+Number(t.amount),0);
+  document.getElementById('reg-stats').innerHTML=`
+    <div class="stat-card c-purple"><div class="sc-ico">💰</div><div class="sc-lbl">Regional Income</div><div class="sc-val c-purple">₦${fmt(tI)}</div><div class="sc-sub">All branches</div></div>
+    <div class="stat-card c-red"><div class="sc-ico">💸</div><div class="sc-lbl">Regional Expenditure</div><div class="sc-val c-red">₦${fmt(tE)}</div><div class="sc-sub">All branches</div></div>
+    <div class="stat-card ${(tI-tE)>=0?'c-green':'c-red'}"><div class="sc-ico">${(tI-tE)>=0?'✅':'⚠️'}</div><div class="sc-lbl">Regional Net</div><div class="sc-val ${(tI-tE)>=0?'c-green':'c-red'}">₦${fmt(tI-tE)}</div></div>
+    <div class="stat-card c-gold"><div class="sc-ico">🏛️</div><div class="sc-lbl">Active Branches</div><div class="sc-val c-gold">7</div></div>`;
+  document.getElementById('br-grid').innerHTML=ALL_IDS.map(bk=>{
+    const bT=mth.filter(t=>t.branch===bk);
+    const bI=bT.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
+    const bE=bT.filter(t=>t.flow==='expenditure').reduce((s,t)=>s+Number(t.amount),0);
+    return `<div class="br-card"><div class="br-name">${BRANCHES[bk].name}</div><div class="br-loc">${BRANCHES[bk].short}</div>
+    <div class="br-nums">
+      <div class="br-num"><div class="nl">Income</div><div class="nv inc">₦${fmt(bI)}</div></div>
+      <div class="br-num"><div class="nl">Expenditure</div><div class="nv exp">₦${fmt(bE)}</div></div>
+      <div class="br-num"><div class="nl">Net</div><div class="nv ${(bI-bE)>=0?'inc':'exp'}">₦${fmt(bI-bE)}</div></div>
+      <div class="br-num"><div class="nl">Records</div><div class="nv" style="color:var(--purple);">${bT.length}</div></div>
+    </div></div>`;
+  }).join('');
+  const sorted=[...mth].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  document.getElementById('reg-tb').innerHTML=sorted.length?sorted.map(t=>`<tr>
+    <td>${t.date||'—'}</td>
+    <td style="font-size:.72rem;font-family:'Montserrat',sans-serif;font-weight:600;color:var(--purple);">${BRANCHES[t.branch]?.short||t.branch}</td>
+    <td><span class="badge ${t.flow}">${t.flow==='income'?'Income':'Exp.'}</span></td>
+    <td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td>
+    <td>${t.desc||'—'}</td>
+    <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:${t.flow==='income'?'var(--green)':'var(--red)'};">${t.flow==='income'?'+':'-'}₦${fmt(Number(t.amount))}</td>
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;font-style:italic;">No records for this period</td></tr>';
+}
+window.buildRegional=buildRegional;
+
+// ══════════════════════════════════════════════════
+//  DELETE
+// ══════════════════════════════════════════════════
+async function delRecord(id, page){
+  if(!confirm('Delete this record permanently?')) return;
+  try { await delTxn(id); }
+  catch(e){ alert('Could not delete. Try again.'); return; }
+  if(page==='inc') loadIncList();
+  if(page==='exp') loadExpList();
+}
+window.delRecord=delRecord;
+
+// ══════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════
+function gv(id){ const el=document.getElementById(id); return el?el.value:''; }
+function sv(id,v){ const el=document.getElementById(id); if(el) el.value=v; }
+function showA(id,msg){
+  const el=document.getElementById(id);
+  if(msg) el.textContent=(id.endsWith('err')?'⚠️ ':'✅ ')+msg;
+  el.style.display='block';
+  setTimeout(()=>el.style.display='none',4500);
+}
+</script>
+</body>
+</html>
