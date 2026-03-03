@@ -651,7 +651,7 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
 // ── LOCAL USERS (login works without Firebase) ────
 // Format: branchId: { user:'username', pass:'password', role:'accountant'|'admin' }
 const LOCAL_USERS = {
-  HQ:    { user:'olorunda@mfmakure.org', pass:'mfm2025',   role:'accountant' },
+  HQ:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
   B1:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
   B2:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
   B3:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
@@ -663,13 +663,13 @@ const LOCAL_USERS = {
 
 // ── BRANCH INFO ────────────────────────────────────
 const BRANCHES = {
-  HQ:    { name:'MFM Olorunda Zone',       short:'Olorunda'    },
+  HQ:    { name:'MFM SW58 Reg. Hqtrs',       short:'Olorunda'    },
   B1:    { name:'MFM Unity Zone',          short:'Unity'       },
   B2:    { name:'MFM Ilere Zone',          short:'Ilere'       },
   B3:    { name:'MFM Irese 1 Zone',        short:'Irese 1'     },
   B4:    { name:'MFM Irese 2 Zone',        short:'Irese 2'     },
   B5:    { name:'MFM Branch 1',            short:'Branch 1'    },
-  B6:    { name:'MFM Branch 2',            short:'Branch 2'    },
+  B6:    { name:'MFM Olorunda Zone',            short:'Olorunda'    },
   ADMIN: { name:'Regional Administrator',  short:'All Branches'},
 };
 const ALL_IDS = ['HQ','B1','B2','B3','B4','B5','B6'];
@@ -686,7 +686,15 @@ const ALL_IDS = ['HQ','B1','B2','B3','B4','B5','B6'];
 //   messagingSenderId: "123456789",
 //   appId: "1:123456789:web:abc123"
 // };
-const FB_CONFIG = null; // ← REPLACE null WITH YOUR CONFIG TO GO LIVE
+const firebaseConfig = {
+  apiKey: "AIzaSyDcRkmHnpJHbi-58LdMIwCGLaTyDMV0GEs",
+  authDomain: "mfm-akure-portal.firebaseapp.com",
+  projectId: "mfm-akure-portal",
+  storageBucket: "mfm-akure-portal.firebasestorage.app",
+  messagingSenderId: "944708419639",
+  appId: "1:944708419639:web:cf74e2e687a3ecb04ebfb2"
+};
+ // ← REPLACE null WITH YOUR CONFIG TO GO LIVE
 
 // ─────────────────────────────────────────────────
 //  DO NOT EDIT BELOW THIS LINE
