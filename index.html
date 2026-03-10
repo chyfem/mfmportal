@@ -36,6 +36,7 @@ body { font-family:'Open Sans',sans-serif; background:var(--off); color:var(--mt
 .btn-login:hover { opacity:.92; }
 .btn-login:disabled { opacity:.6; cursor:not-allowed; }
 .login-err { display:none; background:#FEF2F2; border:1px solid #FECACA; border-radius:4px; padding:.6rem 1rem; color:#B91C1C; font-size:.8rem; text-align:center; margin-top:.75rem; font-family:'Montserrat',sans-serif; font-weight:600; }
+.login-ok  { display:none; background:var(--green-bg); border:1px solid #BBF7D0; border-radius:4px; padding:.6rem 1rem; color:#15803D; font-size:.8rem; text-align:center; margin-top:.75rem; font-family:'Montserrat',sans-serif; font-weight:600; line-height:1.55; }
 .lc-hint { background:var(--off); border:1px solid var(--border); border-radius:6px; padding:1rem; margin-top:1.2rem; font-size:.73rem; color:var(--muted); line-height:1.7; }
 .lc-hint strong { color:var(--purple); }
 .lc-hint code { background:var(--purple-bg); color:var(--purple-dk); padding:.1rem .4rem; border-radius:3px; font-size:.72rem; }
@@ -326,6 +327,13 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
     <span id="l-btn-text">Login to Portal</span>
   </button>
   <div class="login-err" id="l-err"></div>
+  <div class="login-ok" id="l-ok"></div>
+
+  <div style="text-align:center;margin-top:.85rem;">
+    <button onclick="doForgotPassword()" style="background:none;border:none;color:var(--purple);font-family:'Montserrat',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px;">
+      Forgot your password?
+    </button>
+  </div>
 
   <div class="lc-hint">
     <strong>Sign in with your assigned email account.</strong><br>
@@ -760,7 +768,7 @@ const LOCAL_OVERSEER_PASS = "overseer2025";
 //  BRANCH INFO
 // ══════════════════════════════════════════════════════════════
 const BRANCHES = {
-  HQ:       { name:'MFM SW58 Reg. Hqtrs',     short:'Olorunda'     },
+  HQ:       { name:'MFM SW58 Reg. Hqtrs',     short:'Reg Hqt'     },
   B1:       { name:'MFM Unity Zone',           short:'Unity'        },
   B2:       { name:'MFM Ilere Zone',           short:'Ilere'        },
   B3:       { name:'MFM Irese 1 Zone',         short:'Irese 1'      },
@@ -998,6 +1006,55 @@ async function doLogout(){
 
 window.doLogin  = doLogin;
 window.doLogout = doLogout;
+
+// ══════════════════════════════════════════════════════════════
+//  FORGOT PASSWORD
+// ══════════════════════════════════════════════════════════════
+async function doForgotPassword(){
+  const email   = document.getElementById('l-email').value.trim().toLowerCase();
+  const errEl   = document.getElementById('l-err');
+  const okEl    = document.getElementById('l-ok');
+  errEl.style.display = 'none';
+  okEl.style.display  = 'none';
+
+  if(!email){
+    errEl.textContent   = 'Please enter your email address above first.';
+    errEl.style.display = 'block';
+    document.getElementById('l-email').focus();
+    return;
+  }
+
+  if(!fbMode || !AUTH){
+    errEl.textContent   = 'Password reset requires Firebase to be configured. Contact the Regional Overseer to reset your password manually.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn    = document.getElementById('l-btn');
+  const btnTxt = document.getElementById('l-btn-text');
+  btn.disabled = true;
+  btnTxt.innerHTML = '<span class="spin"></span> Sending…';
+
+  try {
+    const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    await sendPasswordResetEmail(AUTH, email);
+    okEl.innerHTML    = `✅ Password reset email sent to <strong>${email}</strong>.<br>Check your inbox (and spam folder) and follow the link to set a new password.`;
+    okEl.style.display = 'block';
+  } catch(e){
+    const msgs = {
+      'auth/user-not-found':         'No account found with this email address. Contact the Regional Overseer.',
+      'auth/invalid-email':          'The email address is not valid.',
+      'auth/too-many-requests':      'Too many requests. Please wait a few minutes and try again.',
+      'auth/network-request-failed': 'Network error. Check your connection and try again.',
+    };
+    errEl.textContent   = msgs[e.code] || 'Could not send reset email. Please try again.';
+    errEl.style.display = 'block';
+  }
+
+  btn.disabled = false;
+  btnTxt.textContent = 'Login to Portal';
+}
+window.doForgotPassword = doForgotPassword;
 
 // ══════════════════════════════════════════════════════════════
 //  INIT
