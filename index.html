@@ -323,14 +323,14 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
     <input type="password" id="l-pass" placeholder="••••••••"
            autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
   </div>
-  <button class="btn-login" id="l-btn" onclick="doLogin()">
+  <button class="btn-login" id="l-btn" id="l-btn-main">
     <span id="l-btn-text">Login to Portal</span>
   </button>
   <div class="login-err" id="l-err"></div>
   <div class="login-ok" id="l-ok"></div>
 
   <div style="text-align:center;margin-top:.85rem;">
-    <button onclick="doForgotPassword()" style="background:none;border:none;color:var(--purple);font-family:'Montserrat',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px;">
+    <button id="l-forgot-btn" style="background:none;border:none;color:var(--purple);font-family:'Montserrat',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px;">
       Forgot your password?
     </button>
   </div>
@@ -416,7 +416,7 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
           <div class="sb-urole" id="sb-urole">—</div>
         </div>
       </div>
-      <button class="btn-out" onclick="doLogout()">↩ Sign Out</button>
+      <button class="btn-out" id="logout-btn-main">↩ Sign Out</button>
     </div>
   </aside>
 
@@ -701,7 +701,7 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
 </div><!-- /layout -->
 </div><!-- /app -->
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
+<script>
 // ═══════════════════════════════════════════════════════════════
 //  ⚙️  CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
@@ -768,7 +768,7 @@ const LOCAL_OVERSEER_PASS = "overseer2025";
 //  BRANCH INFO
 // ══════════════════════════════════════════════════════════════
 const BRANCHES = {
-  HQ:       { name:'MFM SW58 Reg. Hqtrs',     short:'Reg Hqt'     },
+  HQ:       { name:'MFM SW58 Reg. Hqtrs',     short:'Olorunda'     },
   B1:       { name:'MFM Unity Zone',           short:'Unity'        },
   B2:       { name:'MFM Ilere Zone',           short:'Ilere'        },
   B3:       { name:'MFM Irese 1 Zone',         short:'Irese 1'      },
@@ -1004,8 +1004,8 @@ async function doLogout(){
   document.getElementById('l-btn').disabled = false;
 }
 
-window.doLogin  = doLogin;
-window.doLogout = doLogout;
+
+
 
 // ══════════════════════════════════════════════════════════════
 //  FORGOT PASSWORD
@@ -1054,7 +1054,7 @@ async function doForgotPassword(){
   btn.disabled = false;
   btnTxt.textContent = 'Login to Portal';
 }
-window.doForgotPassword = doForgotPassword;
+
 
 // ══════════════════════════════════════════════════════════════
 //  INIT
@@ -1391,7 +1391,7 @@ async function buildReport(){
   document.getElementById('r-exp-tb').innerHTML=eR.map(t=>`<tr><td>${t.date}</td><td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td><td>${t.beneficiary||'—'}</td><td>${t.approved||'—'}</td><td style="font-weight:700;color:var(--red);font-family:'Montserrat',sans-serif;">₦${fmt(Number(t.amount))}</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;font-style:italic;">No expenditure records</td></tr>';
   document.getElementById('r-exp-sum').textContent=fmt(tE);
 }
-window.buildReport=buildReport;
+
 
 // ══════════════════════════════════════════════════════════════
 //  REGIONAL OVERVIEW
@@ -1430,8 +1430,39 @@ async function buildRegional(){
     <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:${t.flow==='income'?'var(--green)':'var(--red)'};">${t.flow==='income'?'+':'-'}₦${fmt(Number(t.amount))}</td>
   </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;font-style:italic;">No records for this period</td></tr>';
 }
-window.buildRegional=buildRegional;
+
 
 // ══════════════════════════════════════════════════════════════
 //  DELETE
 // ═══════════════════════════════════════
+async function delRecord(id, page){
+  if(!confirm('Delete this record permanently?')) return;
+  try{ await delTxn(id); }
+  catch(e){ alert('Could not delete. Try again.'); return; }
+  if(page==='inc') loadIncList();
+  if(page==='exp') loadExpList();
+}
+
+// ── BUTTON WIRING ─────────────────────────────────────────────
+(function(){
+  function wire(){
+    var lb = document.getElementById('l-btn-main');
+    if(lb) lb.addEventListener('click', doLogin);
+    var lf = document.getElementById('l-forgot-btn');
+    if(lf) lf.addEventListener('click', doForgotPassword);
+    var lo = document.getElementById('logout-btn-main');
+    if(lo) lo.addEventListener('click', doLogout);
+    var ep = document.getElementById('l-pass');
+    if(ep) ep.addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+    var em = document.getElementById('l-email');
+    if(em) em.addEventListener('keydown', function(e){ if(e.key==='Enter') document.getElementById('l-pass').focus(); });
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', wire);
+  } else { wire(); }
+  // Boot Firebase
+  if(typeof initFirebase === 'function') initFirebase();
+})();
+</script>
+</body>
+</html>
