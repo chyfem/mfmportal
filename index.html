@@ -7,22 +7,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
-/* ════════════════════════════════════════════════
-   MFM PORTAL — FULL RESPONSIVE CSS
-════════════════════════════════════════════════ */
 :root {
   --purple:#5B1FA2; --purple-dk:#3D1170; --purple-lt:#7B3CC3;
   --purple-bg:#F0EBF9; --red:#CC0000; --gold:#C9940A;
   --white:#fff; --off:#F7F5FB; --mtn:#1A1A2E;
   --border:#DDD5EC; --muted:#6B6680;
   --green:#16A34A; --green-bg:#F0FBF4;
+  --blue:#1D4ED8; --blue-bg:#EFF6FF;
   --sidebar-w:245px;
 }
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 html { -webkit-text-size-adjust:100%; }
 body { font-family:'Open Sans',sans-serif; background:var(--off); color:var(--mtn); min-height:100vh; overflow-x:hidden; }
 
-/* ── LOGIN ──────────────────────────────────────── */
+/* ── LOGIN ── */
 #login-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(135deg,var(--purple-dk),var(--mtn)); padding:1rem; }
 .lc { background:#fff; border-radius:14px; padding:2.2rem 1.8rem; width:100%; max-width:420px; box-shadow:0 24px 60px rgba(0,0,0,.45); }
 .lc-logo { text-align:center; margin-bottom:1.8rem; }
@@ -34,19 +32,27 @@ body { font-family:'Open Sans',sans-serif; background:var(--off); color:var(--mt
 .fg label { display:block; font-family:'Montserrat',sans-serif; font-size:.62rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:.35rem; }
 .fg input, .fg select { width:100%; border:1.5px solid var(--border); border-radius:5px; padding:.75rem .95rem; font-size:.9rem; color:var(--mtn); outline:none; background:var(--off); transition:border-color .2s,box-shadow .2s; font-family:'Open Sans',sans-serif; -webkit-appearance:none; }
 .fg input:focus, .fg select:focus { border-color:var(--purple); box-shadow:0 0 0 3px rgba(91,31,162,.1); background:#fff; }
-.btn-login { width:100%; background:linear-gradient(135deg,var(--purple),var(--purple-lt)); color:#fff; font-family:'Montserrat',sans-serif; font-size:.85rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:.9rem; border:none; border-radius:5px; cursor:pointer; margin-top:.3rem; box-shadow:0 4px 14px rgba(91,31,162,.4); transition:opacity .2s; }
+.btn-login { width:100%; background:linear-gradient(135deg,var(--purple),var(--purple-lt)); color:#fff; font-family:'Montserrat',sans-serif; font-size:.85rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:.9rem; border:none; border-radius:5px; cursor:pointer; margin-top:.3rem; box-shadow:0 4px 14px rgba(91,31,162,.4); transition:opacity .2s; display:flex; align-items:center; justify-content:center; gap:.5rem; }
 .btn-login:hover { opacity:.92; }
 .btn-login:disabled { opacity:.6; cursor:not-allowed; }
 .login-err { display:none; background:#FEF2F2; border:1px solid #FECACA; border-radius:4px; padding:.6rem 1rem; color:#B91C1C; font-size:.8rem; text-align:center; margin-top:.75rem; font-family:'Montserrat',sans-serif; font-weight:600; }
 .lc-hint { background:var(--off); border:1px solid var(--border); border-radius:6px; padding:1rem; margin-top:1.2rem; font-size:.73rem; color:var(--muted); line-height:1.7; }
 .lc-hint strong { color:var(--purple); }
 .lc-hint code { background:var(--purple-bg); color:var(--purple-dk); padding:.1rem .4rem; border-radius:3px; font-size:.72rem; }
+.spin { width:16px; height:16px; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:inline-block; flex-shrink:0; }
+@keyframes spin { to { transform:rotate(360deg); } }
 
-/* ── APP SHELL ──────────────────────────────────── */
+/* ── ROLE BADGE on login hint ── */
+.role-pill { display:inline-block; font-family:'Montserrat',sans-serif; font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; padding:.15rem .55rem; border-radius:20px; margin-left:.3rem; }
+.rp-acct  { background:#DCFCE7; color:#15803D; }
+.rp-reg   { background:#DBEAFE; color:#1D4ED8; }
+.rp-over  { background:#EDE9FE; color:var(--purple); }
+
+/* ── APP SHELL ── */
 #app { display:none; min-height:100vh; }
 .layout { display:flex; min-height:100vh; }
 
-/* ── SIDEBAR ────────────────────────────────────── */
+/* ── SIDEBAR ── */
 .sidebar { width:var(--sidebar-w); background:var(--purple-dk); position:fixed; top:0; left:0; height:100vh; z-index:200; display:flex; flex-direction:column; overflow-y:auto; transition:transform .3s ease; }
 .sb-top { padding:1.2rem 1rem 1rem; border-bottom:1px solid rgba(255,255,255,.1); }
 .sb-head { display:flex; align-items:center; justify-content:space-between; }
@@ -57,12 +63,18 @@ body { font-family:'Open Sans',sans-serif; background:var(--off); color:var(--mt
 .sb-branch { background:rgba(255,255,255,.08); border-radius:5px; padding:.55rem .85rem; margin-top:.85rem; border-left:3px solid var(--gold); }
 .sb-branch strong { font-family:'Montserrat',sans-serif; font-size:.72rem; font-weight:700; color:var(--gold); display:block; }
 .sb-branch span { font-size:.65rem; color:rgba(255,255,255,.5); }
+/* Role badge in sidebar */
+.sb-rbadge { display:inline-block; margin-top:.4rem; font-family:'Montserrat',sans-serif; font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:.18rem .6rem; border-radius:20px; }
+.sb-rbadge.acct  { background:rgba(22,163,74,.25); color:#86EFAC; }
+.sb-rbadge.racct { background:rgba(29,78,216,.25); color:#93C5FD; }
+.sb-rbadge.over  { background:rgba(201,148,10,.25); color:#FCD34D; }
 .sb-nav { flex:1; padding:.6rem 0; }
 .sb-sect { font-family:'Montserrat',sans-serif; font-size:.57rem; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:rgba(255,255,255,.3); padding:.65rem 1.1rem .25rem; }
 .sb-item { display:flex; align-items:center; gap:.65rem; padding:.62rem 1.1rem; width:100%; background:none; border:none; border-left:3px solid transparent; color:rgba(255,255,255,.62); font-family:'Montserrat',sans-serif; font-size:.76rem; font-weight:500; cursor:pointer; text-align:left; transition:all .18s; }
 .sb-item:hover { background:rgba(255,255,255,.08); color:#fff; }
 .sb-item.active { background:rgba(255,255,255,.14); color:#fff; border-left-color:var(--gold); }
 .sb-item .si { font-size:.9rem; width:18px; text-align:center; }
+.sb-item.readonly-item { opacity:.7; }
 .sb-foot { padding:.9rem 1rem; border-top:1px solid rgba(255,255,255,.08); }
 .sb-user { display:flex; align-items:center; gap:.6rem; margin-bottom:.65rem; }
 .sb-av { width:32px; height:32px; border-radius:50%; background:var(--purple-lt); display:flex; align-items:center; justify-content:center; font-size:.85rem; flex-shrink:0; }
@@ -71,14 +83,21 @@ body { font-family:'Open Sans',sans-serif; background:var(--off); color:var(--mt
 .btn-out { width:100%; background:rgba(204,0,0,.15); color:rgba(255,255,255,.7); border:1px solid rgba(204,0,0,.3); font-family:'Montserrat',sans-serif; font-size:.68rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; padding:.52rem; border-radius:4px; cursor:pointer; transition:all .2s; }
 .btn-out:hover { background:rgba(204,0,0,.45); color:#fff; }
 
-/* ── OVERLAY ────────────────────────────────────── */
+/* ── ROLE ACCESS BANNER inside app ── */
+.role-banner { display:none; align-items:center; gap:.65rem; padding:.65rem 1.5rem; font-family:'Montserrat',sans-serif; font-size:.73rem; font-weight:600; border-bottom:2px solid; }
+.role-banner.show { display:flex; }
+.role-banner.racct { background:var(--blue-bg); border-color:#BFDBFE; color:var(--blue); }
+.role-banner.over  { background:var(--purple-bg); border-color:var(--border); color:var(--purple-dk); }
+.rb-icon { font-size:1rem; flex-shrink:0; }
+
+/* ── OVERLAY ── */
 .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:199; }
 .overlay.show { display:block; }
 
-/* ── MAIN ───────────────────────────────────────── */
+/* ── MAIN ── */
 .main { margin-left:var(--sidebar-w); flex:1; display:flex; flex-direction:column; min-width:0; }
 
-/* ── TOPBAR ─────────────────────────────────────── */
+/* ── TOPBAR ── */
 .topbar { background:#fff; border-bottom:1px solid var(--border); padding:.8rem 1.5rem; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow:0 1px 4px rgba(0,0,0,.06); gap:.5rem; }
 .tb-left { display:flex; align-items:center; gap:.75rem; min-width:0; }
 .hamburger { display:none; flex-direction:column; gap:4.5px; background:none; border:none; cursor:pointer; padding:.3rem; }
@@ -89,11 +108,14 @@ body { font-family:'Open Sans',sans-serif; background:var(--off); color:var(--mt
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
 .tb-date { font-size:.72rem; color:var(--muted); font-family:'Montserrat',sans-serif; white-space:nowrap; flex-shrink:0; }
 
-/* ── PAGES ──────────────────────────────────────── */
+/* ── PAGES ── */
 .page { display:none; padding:1.5rem; }
 .page.active { display:block; }
 
-/* ── STAT GRID ──────────────────────────────────── */
+/* ── READ-ONLY NOTICE ── */
+.ro-notice { background:var(--blue-bg); border:1.5px solid #BFDBFE; border-radius:7px; padding:.75rem 1.1rem; margin-bottom:1.2rem; display:flex; align-items:center; gap:.6rem; font-family:'Montserrat',sans-serif; font-size:.75rem; font-weight:600; color:var(--blue); }
+
+/* ── STAT GRID ── */
 .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
 .stat-card { background:#fff; border:1px solid var(--border); border-radius:9px; padding:1.2rem 1rem; position:relative; overflow:hidden; }
 .stat-card::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; }
@@ -101,24 +123,26 @@ body { font-family:'Open Sans',sans-serif; background:var(--off); color:var(--mt
 .stat-card.c-red::before { background:var(--red); }
 .stat-card.c-green::before { background:var(--green); }
 .stat-card.c-gold::before { background:var(--gold); }
+.stat-card.c-blue::before { background:var(--blue); }
 .sc-lbl { font-family:'Montserrat',sans-serif; font-size:.6rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:.45rem; }
 .sc-val { font-family:'Montserrat',sans-serif; font-size:1.35rem; font-weight:800; line-height:1; }
 .sc-val.c-purple { color:var(--purple); }
 .sc-val.c-red { color:var(--red); }
 .sc-val.c-green { color:var(--green); }
 .sc-val.c-gold { color:var(--gold); }
+.sc-val.c-blue { color:var(--blue); }
 .sc-sub { font-size:.68rem; color:var(--muted); margin-top:.35rem; }
 .sc-ico { position:absolute; top:.9rem; right:.9rem; font-size:1.6rem; opacity:.14; }
 
-/* ── CARD ───────────────────────────────────────── */
+/* ── CARD ── */
 .card { background:#fff; border:1px solid var(--border); border-radius:9px; padding:1.3rem; margin-bottom:1.3rem; }
 .card-ttl { font-family:'Montserrat',sans-serif; font-size:.82rem; font-weight:700; color:var(--mtn); margin-bottom:1.1rem; }
 
-/* ── CHARTS ─────────────────────────────────────── */
+/* ── CHARTS ── */
 .charts-row { display:grid; grid-template-columns:1.5fr 1fr; gap:1.2rem; margin-bottom:1.3rem; }
 .ch-wrap { height:240px; position:relative; }
 
-/* ── TABLES ─────────────────────────────────────── */
+/* ── TABLES ── */
 .tbl-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 table { width:100%; border-collapse:collapse; font-size:.82rem; min-width:460px; }
 thead th { background:var(--purple-bg); font-family:'Montserrat',sans-serif; font-size:.6rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--purple); padding:.65rem .9rem; text-align:left; border-bottom:2px solid var(--border); white-space:nowrap; }
@@ -127,21 +151,21 @@ tbody tr:hover { background:var(--off); }
 tbody td { padding:.65rem .9rem; vertical-align:middle; }
 tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
 
-/* ── BADGES ─────────────────────────────────────── */
+/* ── BADGES ── */
 .badge { display:inline-block; font-family:'Montserrat',sans-serif; font-size:.58rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:.18rem .6rem; border-radius:20px; white-space:nowrap; }
-.badge.income  { background:#DCFCE7; color:#15803D; }
+.badge.income      { background:#DCFCE7; color:#15803D; }
 .badge.expenditure { background:#FEE2E2; color:#B91C1C; }
-.badge.tithe   { background:#EDE9FE; color:var(--purple); }
-.badge.offering{ background:#FEF9C3; color:#854D0E; }
-.badge.donation{ background:#DBEAFE; color:#1D4ED8; }
-.badge.vow     { background:#FCE7F3; color:#9D174D; }
-.badge.remittance{ background:#FEE2E2; color:#B91C1C; }
-.badge.salary  { background:#FFEDD5; color:#C2410C; }
-.badge.running { background:#F3F4F6; color:#374151; }
-.badge.allowance{ background:#E0F2FE; color:#0369A1; }
-.badge.other   { background:#F3F4F6; color:#374151; }
+.badge.tithe       { background:#EDE9FE; color:var(--purple); }
+.badge.offering    { background:#FEF9C3; color:#854D0E; }
+.badge.donation    { background:#DBEAFE; color:#1D4ED8; }
+.badge.vow         { background:#FCE7F3; color:#9D174D; }
+.badge.remittance  { background:#FEE2E2; color:#B91C1C; }
+.badge.salary      { background:#FFEDD5; color:#C2410C; }
+.badge.running     { background:#F3F4F6; color:#374151; }
+.badge.allowance   { background:#E0F2FE; color:#0369A1; }
+.badge.other       { background:#F3F4F6; color:#374151; }
 
-/* ── FORM LAYOUT ────────────────────────────────── */
+/* ── FORM ── */
 .fg2 { margin-bottom:0; }
 .fg2 label { display:block; font-family:'Montserrat',sans-serif; font-size:.6rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:.32rem; }
 .fg2 input, .fg2 select, .fg2 textarea { width:100%; border:1.5px solid var(--border); border-radius:5px; padding:.65rem .85rem; font-size:.87rem; color:var(--mtn); outline:none; background:var(--off); transition:border-color .2s,box-shadow .2s; font-family:'Open Sans',sans-serif; -webkit-appearance:none; }
@@ -153,7 +177,7 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
 .fcol2 { grid-column:1/-1; }
 .f-actions { display:flex; gap:.85rem; margin-top:1.3rem; padding-top:1.1rem; border-top:1px solid var(--border); flex-wrap:wrap; }
 
-/* ── BUTTONS ────────────────────────────────────── */
+/* ── BUTTONS ── */
 .btn { font-family:'Montserrat',sans-serif; font-size:.75rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:.7rem 1.6rem; border-radius:5px; cursor:pointer; border:none; transition:all .18s; }
 .btn:disabled { opacity:.6; cursor:not-allowed; }
 .btn-p { background:var(--purple); color:#fff; box-shadow:0 3px 10px rgba(91,31,162,.3); }
@@ -164,23 +188,23 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
 .btn-g:hover { border-color:var(--purple); color:var(--purple); }
 .btn-sm { padding:.4rem .9rem; font-size:.65rem; }
 
-/* ── ALERTS ─────────────────────────────────────── */
+/* ── ALERTS ── */
 .alert { display:none; border-radius:4px; padding:.7rem 1rem; font-size:.8rem; margin-bottom:.9rem; font-family:'Montserrat',sans-serif; font-weight:500; }
 .a-ok  { background:var(--green-bg); border:1px solid #BBF7D0; color:#15803D; }
 .a-err { background:#FEF2F2; border:1px solid #FECACA; color:#B91C1C; }
 
-/* ── FILTER BAR ─────────────────────────────────── */
+/* ── FILTER BAR ── */
 .fbar { display:flex; gap:.7rem; flex-wrap:wrap; margin-bottom:1.1rem; align-items:flex-end; }
 .fbar .fg2 { flex:1; min-width:130px; }
 .fbar .fg2 input, .fbar .fg2 select { padding:.55rem .75rem; font-size:.82rem; }
 .fbar .btn { flex-shrink:0; }
 
-/* ── SEC HEADER ─────────────────────────────────── */
+/* ── SEC HEADER ── */
 .sec-hd { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:1.3rem; gap:1rem; flex-wrap:wrap; }
 .sec-hd h2 { font-family:'Montserrat',sans-serif; font-size:1.05rem; font-weight:800; color:var(--mtn); }
 .sec-hd p { font-size:.75rem; color:var(--muted); margin-top:.15rem; }
 
-/* ── BRANCH CARDS ───────────────────────────────── */
+/* ── BRANCH CARDS ── */
 .br-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1rem; margin-bottom:1.3rem; }
 .br-card { background:#fff; border:1px solid var(--border); border-radius:9px; padding:1.2rem; position:relative; overflow:hidden; }
 .br-card::before { content:''; position:absolute; top:0; left:0; width:100%; height:3px; background:linear-gradient(90deg,var(--purple),var(--red)); }
@@ -193,7 +217,7 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
 .nv.inc { color:var(--green); }
 .nv.exp { color:var(--red); }
 
-/* ── SETUP GUIDE ────────────────────────────────── */
+/* ── SETUP GUIDE ── */
 .setup-box { background:linear-gradient(135deg,var(--purple-bg),#fff); border:2px solid var(--purple); border-radius:10px; padding:1.5rem; margin-bottom:1.3rem; }
 .setup-box h3 { font-family:'Montserrat',sans-serif; font-size:.95rem; font-weight:800; color:var(--purple-dk); margin-bottom:1.1rem; }
 .s-step { display:flex; gap:.85rem; margin-bottom:1.1rem; }
@@ -202,77 +226,55 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
 .s-body p { font-size:.78rem; color:var(--muted); line-height:1.6; }
 .s-body code { background:var(--purple-bg); color:var(--purple); padding:.1rem .4rem; border-radius:3px; font-size:.75rem; font-family:monospace; display:inline-block; margin:.1rem 0; word-break:break-all; }
 
-/* ── FIREBASE BANNER ────────────────────────────── */
-#fb-banner { display:none; background:#FEF2F2; border-bottom:2px solid #FECACA; padding:.7rem 1.5rem; font-family:'Montserrat',sans-serif; font-size:.78rem; color:#B91C1C; font-weight:600; }
+/* ── TOP BANNER ── */
+#fb-banner { display:none; border-bottom:2px solid; padding:.7rem 1.5rem; font-family:'Montserrat',sans-serif; font-size:.78rem; font-weight:600; }
+#fb-banner.warn { background:#FEF2F2; border-color:#FECACA; color:#B91C1C; }
+#fb-banner.info { background:#EFF6FF; border-color:#BFDBFE; color:#1D4ED8; }
 
-/* ══════════════════════════════════════════════════
-   RESPONSIVE BREAKPOINTS
-══════════════════════════════════════════════════ */
+/* ── ROLES TABLE in setup guide ── */
+.roles-table { width:100%; border-collapse:collapse; font-size:.78rem; margin-top:.8rem; }
+.roles-table th { background:var(--purple-bg); font-family:'Montserrat',sans-serif; font-size:.6rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--purple); padding:.5rem .75rem; text-align:left; }
+.roles-table td { padding:.5rem .75rem; border-bottom:1px solid var(--border); }
+.roles-table tr:last-child td { border-bottom:none; }
+.tick { color:var(--green); font-weight:700; }
+.cross { color:#9CA3AF; }
 
-/* Tablet ≤ 1024px */
+/* ══ RESPONSIVE ══ */
 @media(max-width:1024px) {
   .stat-grid { grid-template-columns:1fr 1fr; }
   .charts-row { grid-template-columns:1fr; }
   .fgrid.three { grid-template-columns:1fr 1fr; }
 }
-
-/* Mobile ≤ 768px */
 @media(max-width:768px) {
-  /* Sidebar becomes drawer */
   .sidebar { transform:translateX(-100%); }
   .sidebar.open { transform:translateX(0); box-shadow:6px 0 24px rgba(0,0,0,.35); }
   .sb-close { display:block; }
-
-  /* Main takes full width */
   .main { margin-left:0; }
-
-  /* Show hamburger */
   .hamburger { display:flex; }
-
-  /* Topbar */
   .topbar { padding:.7rem 1rem; }
   .tb-date { display:none; }
-
-  /* Pages */
   .page { padding:1rem; }
-
-  /* Stats */
   .stat-grid { grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:1rem; }
   .stat-card { padding:1rem .85rem; }
   .sc-val { font-size:1.1rem; }
   .sc-ico { font-size:1.3rem; }
-
-  /* Charts */
   .ch-wrap { height:200px; }
-
-  /* Forms */
   .fgrid { grid-template-columns:1fr; gap:.85rem; }
   .fgrid.three { grid-template-columns:1fr; }
   .fcol2 { grid-column:1; }
   .f-actions { flex-direction:column; }
   .f-actions .btn { width:100%; text-align:center; }
-
-  /* Filter bar */
   .fbar { flex-direction:column; align-items:stretch; }
   .fbar .fg2 { min-width:unset; width:100%; }
   .fbar .btn { width:100%; }
-
-  /* Sec header */
   .sec-hd { flex-direction:column; align-items:flex-start; gap:.6rem; }
-
-  /* Branch cards */
   .br-grid { grid-template-columns:1fr; }
-
-  /* Setup steps */
   .s-step { flex-direction:column; gap:.4rem; }
   .s-num { align-self:flex-start; }
-
-  /* Card */
   .card { padding:1rem; }
   .setup-box { padding:1.1rem; }
+  .role-banner { padding:.6rem 1rem; }
 }
-
-/* Small phones ≤ 420px */
 @media(max-width:420px) {
   .stat-grid { grid-template-columns:1fr 1fr; gap:.6rem; }
   .sc-val { font-size:.95rem; }
@@ -280,18 +282,11 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
   .page { padding:.75rem; }
   .card { padding:.85rem; }
   .lc { padding:1.6rem 1.2rem; }
-  .br-nums { grid-template-columns:1fr 1fr; }
   .btn { padding:.65rem 1.1rem; font-size:.7rem; }
 }
-
-/* Very small ≤ 350px */
-@media(max-width:350px) {
-  .stat-grid { grid-template-columns:1fr; }
-}
-
-/* Print */
+@media(max-width:350px) { .stat-grid { grid-template-columns:1fr; } }
 @media print {
-  .sidebar, .topbar, .f-actions, .fbar, .hamburger, .overlay, #fb-banner { display:none!important; }
+  .sidebar,.topbar,.f-actions,.fbar,.hamburger,.overlay,#fb-banner,.role-banner { display:none!important; }
   .main { margin-left:0; }
   .page.active { display:block!important; padding:0; }
   .stat-grid { grid-template-columns:1fr 1fr; }
@@ -301,7 +296,7 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
 </head>
 <body>
 
-<!-- ══════════════ LOGIN ═══════════════════════════ -->
+<!-- ══ LOGIN ══ -->
 <div id="login-screen">
 <div class="lc">
   <div class="lc-logo">
@@ -318,49 +313,48 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
   <div class="lc-badge">🔒 Authorised Personnel Only</div>
 
   <div class="fg">
-    <label>Select Your Branch</label>
-    <select id="l-branch">
-      <option value="">— Select branch —</option>
-      <option value="HQ">MFM Olorunda Zone</option>
-      <option value="B1">MFM Unity Zone</option>
-      <option value="B2">MFM Ilere Zone</option>
-      <option value="B3">MFM Irese 1 Zone</option>
-      <option value="B4">MFM Irese 2 Zone</option>
-      <option value="B5">MFM Branch 1</option>
-      <option value="B6">MFM Branch 2</option>
-      <option value="ADMIN">Regional Administrator (All Branches)</option>
-    </select>
-  </div>
-  <div class="fg">
-    <label>Username</label>
-    <input type="text" id="l-user" placeholder="Enter your username" autocomplete="username">
+    <label>Email Address</label>
+    <input type="email" id="l-email" placeholder="yourname@mfmararomi.org"
+           autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()">
   </div>
   <div class="fg">
     <label>Password</label>
-    <input type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password"
-           onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" id="l-pass" placeholder="••••••••"
+           autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
   </div>
-  <button class="btn-login" id="l-btn" onclick="doLogin()">Login to Portal</button>
+  <button class="btn-login" id="l-btn" onclick="doLogin()">
+    <span id="l-btn-text">Login to Portal</span>
+  </button>
   <div class="login-err" id="l-err"></div>
 
   <div class="lc-hint">
-    <strong>Default login credentials:</strong><br>
-    Branch accountant — username: <code>accountant</code> · password: <code>mfm2025</code><br>
-    Administrator — username: <code>admin</code> · password: <code>admin2025</code><br>
-    <em>Change these passwords after first login in the Setup Guide.</em>
+    <strong>Sign in with your assigned email account.</strong><br>
+    <span class="role-pill rp-acct">Branch Accountant</span> — records income &amp; expenditure for one branch<br>
+    <span class="role-pill rp-reg">Regional Accountant</span> — records &amp; manages transactions across all branches<br>
+    <span class="role-pill rp-over">Regional Overseer</span> — full administrator access<br>
+    Contact your administrator if you have not received login credentials.
   </div>
 </div>
 </div>
 
-<!-- ══════════════ APP ═════════════════════════════ -->
+<!-- ══ APP ══ -->
 <div id="app">
-<div id="fb-banner" id="fb-banner"></div>
-<div class="layout">
+<div id="fb-banner"></div>
 
-  <!-- Overlay for mobile sidebar -->
+<!-- Role-awareness banner shown inside the app -->
+<div class="role-banner racct" id="role-banner-racct">
+  <span class="rb-icon">👁️</span>
+  <span><strong>Regional Accountant — Full Regional Access.</strong> You can record and delete transactions across all branches and generate consolidated regional reports.</span>
+</div>
+<div class="role-banner over" id="role-banner-over">
+  <span class="rb-icon">🔑</span>
+  <span><strong>Regional Overseer — Full Administrator Access.</strong> You have complete authority over all branch data.</span>
+</div>
+
+<div class="layout">
   <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
 
-  <!-- ── SIDEBAR ── -->
+  <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sb-top">
       <div class="sb-head">
@@ -378,22 +372,32 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
       </div>
       <div class="sb-branch">
         <strong id="sb-bname">Loading…</strong>
-        <span id="sb-bshort"></span>
+        <span id="sb-bshort"></span><br>
+        <span class="sb-rbadge" id="sb-rbadge"></span>
       </div>
     </div>
 
     <nav class="sb-nav">
       <div class="sb-sect">Overview</div>
       <button class="sb-item active" onclick="nav('dashboard',this)"><span class="si">📊</span>Dashboard</button>
-      <div class="sb-sect">Transactions</div>
-      <button class="sb-item" onclick="nav('income',this)"><span class="si">💰</span>Record Income</button>
-      <button class="sb-item" onclick="nav('expenditure',this)"><span class="si">💸</span>Record Expenditure</button>
+
+      <!-- Write sections — hidden for read-only roles -->
+      <div class="sb-sect" id="sb-write-sect">Transactions</div>
+      <button class="sb-item" id="sb-income-btn" onclick="nav('income',this)"><span class="si">💰</span>Record Income</button>
+      <button class="sb-item" id="sb-exp-btn" onclick="nav('expenditure',this)"><span class="si">💸</span>Record Expenditure</button>
       <button class="sb-item" onclick="nav('transactions',this)"><span class="si">📋</span>All Transactions</button>
+
       <div class="sb-sect">Reports</div>
       <button class="sb-item" onclick="nav('reports',this)"><span class="si">📈</span>Branch Report</button>
+      <!-- Regional pages — shown to regional_accountant, regional_overseer -->
       <button class="sb-item" id="sb-reg" style="display:none" onclick="nav('regional',this)"><span class="si">🗺️</span>Regional Overview</button>
+
+      <!-- Admin-only -->
+      <div class="sb-sect" id="sb-admin-sect" style="display:none">Administration</div>
+      <button class="sb-item" id="sb-users-btn" style="display:none" onclick="nav('users',this)"><span class="si">👥</span>User Management</button>
+
       <div class="sb-sect">Help</div>
-      <button class="sb-item" onclick="nav('setup',this)"><span class="si">⚙️</span>Firebase Setup Guide</button>
+      <button class="sb-item" onclick="nav('setup',this)"><span class="si">⚙️</span>Setup Guide</button>
     </nav>
 
     <div class="sb-foot">
@@ -408,24 +412,22 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
     </div>
   </aside>
 
-  <!-- ── MAIN CONTENT ── -->
+  <!-- MAIN -->
   <div class="main">
     <div class="topbar">
       <div class="tb-left">
-        <button class="hamburger" onclick="openSidebar()" aria-label="Menu">
-          <span></span><span></span><span></span>
-        </button>
+        <button class="hamburger" onclick="openSidebar()" aria-label="Menu"><span></span><span></span><span></span></button>
         <span class="tb-title" id="tb-title">Dashboard</span>
-        <div class="tb-live"><div class="tb-dot"></div>Live</div>
+        <div class="tb-live"><div class="tb-dot"></div><span id="tb-mode">Live</span></div>
       </div>
       <span class="tb-date" id="tb-date"></span>
     </div>
 
-    <!-- DASHBOARD -->
+    <!-- ══ DASHBOARD ══ -->
     <div class="page active" id="page-dashboard">
       <div class="stat-grid" id="stat-grid">
-        <div class="stat-card c-purple"><div class="sc-ico">💰</div><div class="sc-lbl">This Month's Income</div><div class="sc-val c-purple">Loading…</div></div>
-        <div class="stat-card c-red"><div class="sc-ico">💸</div><div class="sc-lbl">This Month's Expenditure</div><div class="sc-val c-red">Loading…</div></div>
+        <div class="stat-card c-purple"><div class="sc-ico">💰</div><div class="sc-lbl">Income This Month</div><div class="sc-val c-purple">Loading…</div></div>
+        <div class="stat-card c-red"><div class="sc-ico">💸</div><div class="sc-lbl">Expenditure This Month</div><div class="sc-val c-red">Loading…</div></div>
         <div class="stat-card c-green"><div class="sc-ico">✅</div><div class="sc-lbl">Net Balance</div><div class="sc-val c-green">Loading…</div></div>
         <div class="stat-card c-gold"><div class="sc-ico">📋</div><div class="sc-lbl">Records This Month</div><div class="sc-val c-gold">—</div></div>
       </div>
@@ -442,7 +444,7 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
       </div>
     </div>
 
-    <!-- INCOME -->
+    <!-- ══ INCOME ══ -->
     <div class="page" id="page-income">
       <div class="sec-hd"><div><h2>Record Income</h2><p>Enter income received by your assembly</p></div></div>
       <div class="alert a-ok" id="inc-ok">✅ Income saved successfully!</div>
@@ -481,13 +483,11 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
           <thead><tr><th>Date</th><th>Type</th><th>Event</th><th>Received By</th><th>Amount (₦)</th><th></th></tr></thead>
           <tbody id="inc-tb"></tbody>
         </table></div>
-        <div style="text-align:right;margin-top:.8rem;font-family:'Montserrat',sans-serif;font-size:.83rem;font-weight:800;color:var(--green);">
-          Total: ₦<span id="inc-total">0.00</span>
-        </div>
+        <div style="text-align:right;margin-top:.8rem;font-family:'Montserrat',sans-serif;font-size:.83rem;font-weight:800;color:var(--green);">Total: ₦<span id="inc-total">0.00</span></div>
       </div>
     </div>
 
-    <!-- EXPENDITURE -->
+    <!-- ══ EXPENDITURE ══ -->
     <div class="page" id="page-expenditure">
       <div class="sec-hd"><div><h2>Record Expenditure</h2><p>Enter expenses incurred by your assembly</p></div></div>
       <div class="alert a-ok" id="exp-ok">✅ Expenditure saved successfully!</div>
@@ -537,13 +537,11 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
           <thead><tr><th>Date</th><th>Type</th><th>Paid To</th><th>Approved By</th><th>Amount (₦)</th><th></th></tr></thead>
           <tbody id="exp-tb"></tbody>
         </table></div>
-        <div style="text-align:right;margin-top:.8rem;font-family:'Montserrat',sans-serif;font-size:.83rem;font-weight:800;color:var(--red);">
-          Total: ₦<span id="exp-total">0.00</span>
-        </div>
+        <div style="text-align:right;margin-top:.8rem;font-family:'Montserrat',sans-serif;font-size:.83rem;font-weight:800;color:var(--red);">Total: ₦<span id="exp-total">0.00</span></div>
       </div>
     </div>
 
-    <!-- ALL TRANSACTIONS -->
+    <!-- ══ ALL TRANSACTIONS ══ -->
     <div class="page" id="page-transactions">
       <div class="sec-hd"><div><h2>All Transactions</h2><p>Filter, view and print records</p></div><button class="btn btn-g btn-sm" onclick="window.print()">🖨️ Print</button></div>
       <div class="card">
@@ -566,7 +564,7 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
       </div>
     </div>
 
-    <!-- REPORTS -->
+    <!-- ══ REPORTS ══ -->
     <div class="page" id="page-reports">
       <div class="sec-hd"><div><h2>Branch Financial Report</h2><p>Monthly summary with charts</p></div><button class="btn btn-g btn-sm" onclick="window.print()">🖨️ Print</button></div>
       <div class="fbar" style="margin-bottom:1.3rem;">
@@ -596,9 +594,9 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
       </div>
     </div>
 
-    <!-- REGIONAL -->
+    <!-- ══ REGIONAL OVERVIEW ══ -->
     <div class="page" id="page-regional">
-      <div class="sec-hd"><div><h2>Regional Overview</h2><p>All 7 branches consolidated</p></div><button class="btn btn-g btn-sm" onclick="window.print()">🖨️ Print</button></div>
+      <div class="sec-hd"><div><h2>Regional Overview</h2><p>All branches consolidated</p></div><button class="btn btn-g btn-sm" onclick="window.print()">🖨️ Print</button></div>
       <div class="fbar" style="margin-bottom:1.3rem;">
         <div class="fg2"><label>Month</label><input type="month" id="reg-month"></div>
         <button class="btn btn-p btn-sm" onclick="buildRegional()">Refresh</button>
@@ -614,28 +612,80 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
       </div>
     </div>
 
-    <!-- SETUP GUIDE -->
+    <!-- ══ USER MANAGEMENT (Overseer only) ══ -->
+    <div class="page" id="page-users">
+      <div class="sec-hd"><div><h2>User Management</h2><p>Roles reference for Firebase Authentication setup</p></div></div>
+      <div class="card">
+        <div class="card-ttl">🔐 Portal Roles &amp; Permissions</div>
+        <table class="roles-table">
+          <thead><tr><th>Role</th><th>Login</th><th>Record Txns</th><th>Delete Txns</th><th>View Own Branch</th><th>View All Branches</th><th>Regional Overview</th><th>User Mgmt</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Branch Accountant</strong></td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td></tr>
+            <tr><td><strong>Regional Accountant</strong></td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td><td class="cross">—</td></tr>
+            <tr><td><strong>Regional Overseer</strong></td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td><td class="tick">✔</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-ttl">👥 Assigning Roles — BRANCH_USERS Map</div>
+        <p style="font-size:.82rem;color:var(--muted);line-height:1.8;">
+          Open this HTML file and locate the <strong>BRANCH_USERS</strong> object in the &lt;script&gt; section.<br>
+          Add each Firebase UID with the correct role:
+        </p>
+        <div style="background:var(--purple-bg);border-radius:6px;padding:1rem;margin-top:.85rem;font-family:monospace;font-size:.78rem;line-height:2;color:var(--purple-dk);">
+          const BRANCH_USERS = {<br>
+          &nbsp;&nbsp;<span style="color:#15803D;">// Branch Accountants — one per branch</span><br>
+          &nbsp;&nbsp;"UID_HQ_ACCOUNTANT": { branch:"HQ", role:"accountant" },<br>
+          &nbsp;&nbsp;"UID_B1_ACCOUNTANT": { branch:"B1", role:"accountant" },<br>
+          &nbsp;&nbsp;<span style="color:#6B6680;">// … add remaining branches …</span><br><br>
+          &nbsp;&nbsp;<span style="color:#1D4ED8;">// Regional Accountant — views all, no write access</span><br>
+          &nbsp;&nbsp;"UID_REG_ACCOUNTANT": { branch:"REGIONAL", role:"regional_accountant" },<br><br>
+          &nbsp;&nbsp;<span style="color:var(--purple);">// Regional Overseer — sole administrator</span><br>
+          &nbsp;&nbsp;"UID_OVERSEER": { branch:"REGIONAL", role:"regional_overseer" },<br>
+          };
+        </div>
+        <p style="font-size:.78rem;color:var(--muted);margin-top:.85rem;line-height:1.7;">
+          ⚠️ <strong>Only one Regional Overseer account should exist.</strong> This account cannot be shared. Get each Firebase UID from: Firebase Console → Authentication → Users → copy the UID column.
+        </p>
+      </div>
+    </div>
+
+    <!-- ══ SETUP GUIDE ══ -->
     <div class="page" id="page-setup">
-      <div class="sec-hd"><div><h2>Firebase Setup Guide</h2><p>Connect for real-time multi-branch data</p></div></div>
+      <div class="sec-hd"><div><h2>Firebase Setup Guide</h2><p>Email/Password auth + Firestore real-time data</p></div></div>
       <div class="setup-box">
         <h3>🔥 How to Connect Firebase (Step by Step)</h3>
         <div class="s-step"><div class="s-num">1</div><div class="s-body"><h4>Create Firebase Project</h4><p>Go to <strong>console.firebase.google.com</strong> → "Add project" → Name it <strong>mfm-akure-portal</strong> → Disable Google Analytics → Create project.</p></div></div>
-        <div class="s-step"><div class="s-num">2</div><div class="s-body"><h4>Get Your Config Credentials</h4><p>Dashboard → click the <strong>&lt;/&gt;</strong> web icon → Register app as <strong>mfm-portal</strong> → Copy the <code>firebaseConfig</code> object shown.</p></div></div>
-        <div class="s-step"><div class="s-num">3</div><div class="s-body"><h4>Paste Credentials into This File</h4><p>Open this HTML file in Notepad++ → Press Ctrl+F → Search for <code>PASTE_YOUR_FIREBASE_CONFIG_HERE</code> → Replace the entire placeholder object with your real config.</p></div></div>
-        <div class="s-step"><div class="s-num">4</div><div class="s-body"><h4>Enable Firestore Database</h4><p>Firebase Console → Firestore Database → Create database → Production mode → Region: <code>europe-west1</code> → Enable.</p></div></div>
-        <div class="s-step"><div class="s-num">5</div><div class="s-body"><h4>Set Firestore Rules</h4><p>Firestore → Rules tab → Replace all content with:</p>
-          <code>rules_version = '2';<br>service cloud.firestore {<br>&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;match /transactions/{doc} {<br>&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null;<br>&nbsp;&nbsp;}<br>&nbsp;}<br>}</code><p>Click <strong>Publish</strong>.</p>
+        <div class="s-step"><div class="s-num">2</div><div class="s-body"><h4>Enable Firebase Authentication</h4><p>In your project → <strong>Authentication</strong> → Get started → <strong>Email/Password</strong> provider → Enable → Save.</p></div></div>
+        <div class="s-step"><div class="s-num">3</div><div class="s-body"><h4>Create All User Accounts</h4><p>Authentication → Users → <strong>Add user</strong> for each person. Suggested email format:</p>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="adc5dcedc0cbc0ccdfccdfc2c0c483c2dfca">[email&#160;protected]</a></code> — HQ Branch Accountant<br>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c3b6adaab7ba83aea5aea2b1a2b1acaeaaedacb1a4">[email&#160;protected]</a></code> — Unity Zone Accountant<br>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="aec7c2cbdccbeec3c8c3cfdccfdcc1c3c780c1dcc9">[email&#160;protected]</a></code> — Ilere Zone Accountant<br>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3c554e594f590d7c515a515d4e5d4e53515512534e5b">[email&#160;protected]</a></code> — Irese 1 Accountant<br>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="147d667167712654797279756675667b797d3a7b6673">[email&#160;protected]</a></code> — Irese 2 Accountant<br>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="accedecdc2cfc49decc1cac1cddecddec3c1c582c3decb">[email&#160;protected]</a></code> — Branch 1 Accountant<br>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="cdafbfaca3aea5ff8da0aba0acbfacbfa2a0a4e3a2bfaa">[email&#160;protected]</a></code> — Branch 2 Accountant<br>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="cbb9aeacaaa8a8a4bea5bfaaa5bf8ba6ada6aab9aab9a4a6a2e5a4b9ac">[email&#160;protected]</a></code> — <strong>Regional Accountant</strong> (view-only all branches)<br>
+          <code><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0e61786b7c7d6b6b7c4e6368636f7c6f7c61636720617c69">[email&#160;protected]</a></code> — <strong>Regional Overseer</strong> (full administrator)<br>
+          <p style="margin-top:.5rem;">After creating each user, copy the <strong>UID</strong> shown in the Users table — you will need it in Step 7.</p>
         </div></div>
-        <div class="s-step"><div class="s-num">6</div><div class="s-body"><h4>Enable Firebase Authentication</h4><p>Authentication → Get started → Email/Password → Enable → Save.</p></div></div>
-        <div class="s-step"><div class="s-num">7</div><div class="s-body"><h4>Create Branch User Accounts</h4><p>Authentication → Users → Add user for each branch:</p>
-          <code>hq@mfmararomi.org</code><code>okeijebu@mfmararomi.org</code><code>ijoka@mfmararomi.org</code><code>shagari@mfmararomi.org</code><code>aswani@mfmararomi.org</code><code>obaile@mfmararomi.org</code><code>ijapo@mfmararomi.org</code><code>admin@mfmararomi.org</code>
+        <div class="s-step"><div class="s-num">4</div><div class="s-body"><h4>Get Your Web App Config</h4><p>Project Settings → click the <strong>&lt;/&gt;</strong> web icon → Register app as <strong>mfm-portal</strong> → Copy the <code>firebaseConfig</code> object.</p></div></div>
+        <div class="s-step"><div class="s-num">5</div><div class="s-body"><h4>Paste Config into This File</h4><p>Open this HTML file in Notepad++ → Find <code>firebaseConfig</code> in the &lt;script type="module"&gt; block → Replace the placeholder values with your real config.</p></div></div>
+        <div class="s-step"><div class="s-num">6</div><div class="s-body"><h4>Enable Firestore Database</h4><p>Firebase Console → <strong>Firestore Database</strong> → Create database → Production mode → Region: <code>europe-west1</code> → Enable.</p></div></div>
+        <div class="s-step"><div class="s-num">7</div><div class="s-body"><h4>Update BRANCH_USERS Map</h4><p>In this file find the <code>BRANCH_USERS</code> object and fill in each Firebase UID with the correct branch and role:</p>
+          <code>"PASTE_UID_HERE": { branch:"HQ", role:"accountant" }</code><br>
+          <code>"PASTE_UID_HERE": { branch:"REGIONAL", role:"regional_accountant" }</code><br>
+          <code>"PASTE_UID_HERE": { branch:"REGIONAL", role:"regional_overseer" }</code>
         </div></div>
-        <div class="s-step"><div class="s-num">8</div><div class="s-body"><h4>Add GitHub Pages Domain to Firebase</h4><p>Authentication → Settings → Authorised domains → Add domain → type your GitHub Pages URL e.g. <code>yourusername.github.io</code> → Add.</p></div></div>
-        <div class="s-step"><div class="s-num">9</div><div class="s-body"><h4>Update Branch Emails in the HTML</h4><p>In the HTML file search for <code>BRANCH_USERS</code> and update the email addresses to match exactly what you created in Firebase Authentication.</p></div></div>
+        <div class="s-step"><div class="s-num">8</div><div class="s-body"><h4>Set Firestore Security Rules</h4>
+          <code>rules_version = '2';<br>service cloud.firestore {<br>&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;match /transactions/{doc} {<br>&nbsp;&nbsp;&nbsp;allow read, write: if request.auth != null;<br>&nbsp;&nbsp;}<br>&nbsp;}<br>}</code>
+          <p>Click <strong>Publish</strong>.</p>
+        </div></div>
+        <div class="s-step"><div class="s-num">9</div><div class="s-body"><h4>Add Authorised Domain</h4><p>Authentication → Settings → Authorised domains → Add your hosting domain, e.g. <code>yourusername.github.io</code> → Add.</p></div></div>
       </div>
       <div class="card" style="border-left:4px solid var(--green);">
-        <div class="card-ttl">✅ Right Now — Portal Works in Local Mode</div>
-        <p style="font-size:.82rem;color:var(--muted);line-height:1.7;">The portal currently runs in <strong>local storage mode</strong> — all data is saved in your browser and works fully offline. Once you add Firebase credentials, it automatically switches to <strong>cloud mode</strong> where all branches share data in real time. Your local data will not be lost during the switch.</p>
+        <div class="card-ttl">✅ Local Mode — Works Without Firebase</div>
+        <p style="font-size:.82rem;color:var(--muted);line-height:1.7;">Without Firebase the portal uses <strong>browser localStorage</strong> with a simple email/username fallback for testing. Once Firebase config and UID map are in place it automatically switches to <strong>Firebase Auth + Firestore cloud mode</strong>.</p>
       </div>
     </div>
 
@@ -643,69 +693,113 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
 </div><!-- /layout -->
 </div><!-- /app -->
 
-<script>
-// ═══════════════════════════════════════════════════
-//  ⚙️  CONFIGURATION — CHANGE THESE TO YOUR SETTINGS
-// ═══════════════════════════════════════════════════
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
+// ═══════════════════════════════════════════════════════════════
+//  ⚙️  CONFIGURATION
+// ═══════════════════════════════════════════════════════════════
 
-// ── LOCAL USERS (login works without Firebase) ────
-// Format: branchId: { user:'username', pass:'password', role:'accountant'|'admin' }
-const LOCAL_USERS = {
-  HQ:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
-  B1:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
-  B2:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
-  B3:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
-  B4:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
-  B5:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
-  B6:    { user:'accountant', pass:'mfm2025',   role:'accountant' },
-  ADMIN: { user:'admin',      pass:'admin2025', role:'admin'       },
+// ── 1. FIREBASE CONFIG ─────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyDcRkmHnpJHbi-58LdMIwCGLaTyDMV0GEs",
+  authDomain:        "mfm-akure-portal.firebaseapp.com",
+  projectId:         "mfm-akure-portal",
+  storageBucket:     "mfm-akure-portal.firebasestorage.app",
+  messagingSenderId: "944708419639",
+  appId:             "1:944708419639:web:cf74e2e687a3ecb04ebfb2"
 };
 
-// ── BRANCH INFO ────────────────────────────────────
+// ── 2. BRANCH USERS MAP ────────────────────────────────────────
+// Map Firebase Auth UID → { branch, role }
+//
+// role options:
+//   "accountant"          — branch-level, read/write own branch only
+//   "regional_accountant" — read-only across ALL branches + regional reports
+//   "regional_overseer"   — full administrator (sole account recommended)
+//
+// For regional roles use branch:"REGIONAL"
+// For branch accountants use branch:"HQ","B1","B2","B3","B4","B5","B6"
+//
+const BRANCH_USERS = {
+  // ── Branch Accountants ──────────────────────────────────────
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"HQ",  role:"accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"B1",  role:"accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"B2",  role:"accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"B3",  role:"accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"B4",  role:"accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"B5",  role:"accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"B6",  role:"accountant" },
+
+  // ── Regional Accountant (view-only all branches) ────────────
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"REGIONAL", role:"regional_accountant" },
+
+  // ── Regional Overseer (sole full administrator) ─────────────
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"REGIONAL", role:"regional_overseer" },
+};
+
+// ── 3. LOCAL FALLBACK (for offline/testing only) ───────────────
+// username here = the part before @ in the email typed at login
+const LOCAL_FALLBACK = {
+  // branch accountants
+  hq:       { branch:"HQ",       role:"accountant"          },
+  unity:    { branch:"B1",       role:"accountant"          },
+  ilere:    { branch:"B2",       role:"accountant"          },
+  irese1:   { branch:"B3",       role:"accountant"          },
+  irese2:   { branch:"B4",       role:"accountant"          },
+  branch1:  { branch:"B5",       role:"accountant"          },
+  branch2:  { branch:"B6",       role:"accountant"          },
+  // regional roles
+  regaccountant: { branch:"REGIONAL", role:"regional_accountant" },
+  overseer:      { branch:"REGIONAL", role:"regional_overseer"   },
+};
+// Shared password for the local fallback (testing only)
+const LOCAL_FALLBACK_PASS = "mfm2025";
+// Overseer-specific fallback password
+const LOCAL_OVERSEER_PASS = "overseer2025";
+
+// ══════════════════════════════════════════════════════════════
+//  BRANCH INFO
+// ══════════════════════════════════════════════════════════════
 const BRANCHES = {
-  HQ:    { name:'MFM SW58 Reg. Hqtrs',       short:'Olorunda'    },
-  B1:    { name:'MFM Unity Zone',          short:'Unity'       },
-  B2:    { name:'MFM Ilere Zone',          short:'Ilere'       },
-  B3:    { name:'MFM Irese 1 Zone',        short:'Irese 1'     },
-  B4:    { name:'MFM Irese 2 Zone',        short:'Irese 2'     },
-  B5:    { name:'MFM Branch 1',            short:'Branch 1'    },
-  B6:    { name:'MFM Olorunda Zone',            short:'Olorunda'    },
-  ADMIN: { name:'Regional Administrator',  short:'All Branches'},
+  HQ:       { name:'MFM SW58 Reg. Hqtrs',     short:'Olorunda'     },
+  B1:       { name:'MFM Unity Zone',           short:'Unity'        },
+  B2:       { name:'MFM Ilere Zone',           short:'Ilere'        },
+  B3:       { name:'MFM Irese 1 Zone',         short:'Irese 1'      },
+  B4:       { name:'MFM Irese 2 Zone',         short:'Irese 2'      },
+  B5:       { name:'MFM Branch 1',             short:'Branch 1'     },
+  B6:       { name:'MFM Olorunda Zone',        short:'Olorunda'     },
+  REGIONAL: { name:'Regional Office',          short:'All Branches' },
 };
 const ALL_IDS = ['HQ','B1','B2','B3','B4','B5','B6'];
 
-// ── FIREBASE CONFIG ────────────────────────────────
-// Paste your Firebase config object here to enable
-// cloud/real-time mode. Leave as null to use local mode.
-// Example:
-// const FB_CONFIG = {
-//   apiKey: "AIzaSy...",
-//   authDomain: "mfm-akure-portal.firebaseapp.com",
-//   projectId: "mfm-akure-portal",
-//   storageBucket: "mfm-akure-portal.appspot.com",
-//   messagingSenderId: "123456789",
-//   appId: "1:123456789:web:abc123"
-// };
-const firebaseConfig = {
-  apiKey: "AIzaSyDcRkmHnpJHbi-58LdMIwCGLaTyDMV0GEs",
-  authDomain: "mfm-akure-portal.firebaseapp.com",
-  projectId: "mfm-akure-portal",
-  storageBucket: "mfm-akure-portal.firebasestorage.app",
-  messagingSenderId: "944708419639",
-  appId: "1:944708419639:web:cf74e2e687a3ecb04ebfb2"
-};
- // ← REPLACE null WITH YOUR CONFIG TO GO LIVE
+// ══════════════════════════════════════════════════════════════
+//  ROLE HELPERS
+// ══════════════════════════════════════════════════════════════
+// Convenience helpers used throughout the app
+function isOverseer(role)         { return role === 'regional_overseer'; }
+function isRegionalAccountant(role){ return role === 'regional_accountant'; }
+function isRegionalRole(role)     { return isOverseer(role) || isRegionalAccountant(role); }
+function canWrite(role)           { return role === 'accountant' || isRegionalAccountant(role) || isOverseer(role); }
+function canDelete(role)          { return role === 'accountant' || isRegionalAccountant(role) || isOverseer(role); }
+function canViewAll(role)         { return isRegionalRole(role); }
 
-// ─────────────────────────────────────────────────
-//  DO NOT EDIT BELOW THIS LINE
-// ─────────────────────────────────────────────────
+// Human-readable role label
+function roleLabel(role){
+  if(role==='accountant')          return 'Branch Accountant';
+  if(role==='regional_accountant') return 'Regional Accountant';
+  if(role==='regional_overseer')   return 'Regional Overseer';
+  return role;
+}
 
-let CU = null; // current user session
-let DB = null; // Firestore instance (if Firebase connected)
+// ══════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════
+let CU   = null;   // { branch, role, email, uid }
+let DB   = null;
+let AUTH = null;
 let fbMode = false;
 let barC=null, dnutC=null, rLineC=null, rPieC=null;
 
-// ── TYPE LABELS ────────────────────────────────────
+// ── TYPE LABELS ────────────────────────────────────────────────
 const T = {
   tithe:'Tithe','offering':'Sunday Offering','offering-mid':'Midweek Offering',
   donation:'Donation',vow:'Vow/Pledge',thanksgiving:'Thanksgiving',
@@ -731,159 +825,298 @@ function tCls(t){
   return 'other';
 }
 
-// ── FORMATTING ─────────────────────────────────────
+// ── FORMATTING ─────────────────────────────────────────────────
 function fmt(n){ return Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtK(n){ if(n>=1e6) return(n/1e6).toFixed(1)+'M'; if(n>=1e3) return(n/1e3).toFixed(0)+'K'; return n; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function getLast6(){ const m=[],n=new Date(); for(let i=5;i>=0;i--){const d=new Date(n.getFullYear(),n.getMonth()-i,1);m.push(d.toISOString().slice(0,7));} return m; }
 function destroyC(c){ if(c) try{c.destroy();}catch(e){} }
 
-// ── LOCAL STORAGE DATA ─────────────────────────────
+// ── LOCAL STORAGE DATA ─────────────────────────────────────────
 function lsGet(){ try{ return JSON.parse(localStorage.getItem('mfm_txns')||'[]'); }catch(e){return[];} }
 function lsSave(d){ localStorage.setItem('mfm_txns', JSON.stringify(d)); }
 function lsAdd(rec){ const d=lsGet(); d.push(rec); lsSave(d); }
 function lsDel(id){ lsSave(lsGet().filter(t=>t.id!==id)); }
 
-// ── GET TRANSACTIONS ───────────────────────────────
+// ── FIRESTORE CRUD ─────────────────────────────────────────────
 async function getTxns(branchId){
   if(fbMode && DB){
     try {
       const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
       const snap = await getDocs(collection(DB,'transactions'));
       let docs = snap.docs.map(d=>({id:d.id,...d.data()}));
-      if(branchId && branchId!=='ADMIN') docs=docs.filter(t=>t.branch===branchId);
+      if(branchId && branchId!=='REGIONAL') docs=docs.filter(t=>t.branch===branchId);
       return docs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     } catch(e){ console.error('Firestore read:',e); return []; }
   }
-  // Local mode
   let d = lsGet();
-  if(branchId && branchId!=='ADMIN') d=d.filter(t=>t.branch===branchId);
+  if(branchId && branchId!=='REGIONAL') d=d.filter(t=>t.branch===branchId);
   return d.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
 }
-
 async function addTxn(rec){
   if(fbMode && DB){
     const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
     await addDoc(collection(DB,'transactions'),{...rec,createdAt:serverTimestamp()});
-  } else {
-    lsAdd(rec);
-  }
+  } else { lsAdd(rec); }
 }
-
 async function delTxn(id){
   if(fbMode && DB){
     const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
     await deleteDoc(doc(DB,'transactions',id));
-  } else {
-    lsDel(id);
-  }
+  } else { lsDel(id); }
 }
 
-// ── FIREBASE INIT (optional) ───────────────────────
+// ── FIREBASE INIT ──────────────────────────────────────────────
+function isFirebaseConfigured(){
+  return firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR_');
+}
+function hasUidMap(){
+  return Object.keys(BRANCH_USERS).length > 0 &&
+    !Object.keys(BRANCH_USERS)[0].startsWith('REPLACE_');
+}
 async function initFirebase(){
-  if(!FB_CONFIG) return false;
+  if(!isFirebaseConfigured()) return false;
   try {
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
+    const { getAuth }       = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
     const { getFirestore }  = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-    const app = initializeApp(FB_CONFIG);
-    DB = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    AUTH = getAuth(app);
+    DB   = getFirestore(app);
     fbMode = true;
-    console.log('✅ Firebase connected');
-    // Update live dot
-    document.querySelector('.tb-dot').style.background='#2196F3';
     return true;
-  } catch(e){
-    console.error('Firebase init failed:',e);
-    showBanner('⚠️ Firebase connection failed: '+e.message+' — Running in local mode.');
-    return false;
-  }
+  } catch(e){ console.error('Firebase init failed:', e); fbMode=false; return false; }
 }
 
-function showBanner(msg){
+// ── BANNER ─────────────────────────────────────────────────────
+function showBanner(msg, type='warn'){
   const b=document.getElementById('fb-banner');
-  b.textContent=msg; b.style.display='block';
+  b.textContent=msg; b.className=type; b.style.display='block';
+}
+function hideBanner(){ document.getElementById('fb-banner').style.display='none'; }
+
+// ── AUTH ERROR MESSAGES ────────────────────────────────────────
+function authErrMsg(code){
+  const m={
+    'auth/invalid-email':          'The email address is not valid.',
+    'auth/user-not-found':         'No account found with this email address.',
+    'auth/wrong-password':         'Incorrect password. Please try again.',
+    'auth/invalid-credential':     'Invalid email or password. Please try again.',
+    'auth/too-many-requests':      'Too many failed attempts. Please wait a few minutes.',
+    'auth/user-disabled':          'This account has been disabled. Contact your administrator.',
+    'auth/network-request-failed': 'Network error. Check your connection and try again.',
+  };
+  return m[code]||'Login failed. Please check your credentials.';
 }
 
-// ══════════════════════════════════════════════════
-//  AUTH
-// ══════════════════════════════════════════════════
-function doLogin(){
-  const branch = document.getElementById('l-branch').value;
-  const user   = document.getElementById('l-user').value.trim().toLowerCase();
+// ══════════════════════════════════════════════════════════════
+//  LOGIN  — Firebase Email/Password with local fallback
+// ══════════════════════════════════════════════════════════════
+async function doLogin(){
+  const email  = document.getElementById('l-email').value.trim().toLowerCase();
   const pass   = document.getElementById('l-pass').value;
-  const err    = document.getElementById('l-err');
-  err.style.display='none';
+  const errEl  = document.getElementById('l-err');
+  const btn    = document.getElementById('l-btn');
+  const btnTxt = document.getElementById('l-btn-text');
+  errEl.style.display = 'none';
 
-  if(!branch){ showErr('Please select your branch.'); return; }
-  if(!user)  { showErr('Please enter your username.'); return; }
-  if(!pass)  { showErr('Please enter your password.'); return; }
+  if(!email){ showLErr('Please enter your email address.'); return; }
+  if(!pass) { showLErr('Please enter your password.'); return; }
 
-  const creds = LOCAL_USERS[branch];
-  if(!creds){ showErr('Branch not found. Please contact admin.'); return; }
-  if(creds.user!==user || creds.pass!==pass){ showErr('Invalid username or password. Please try again.'); return; }
+  btn.disabled = true;
+  btnTxt.innerHTML = '<span class="spin"></span> Signing in…';
 
-  // ✅ Login successful
-  CU = { branch, user, role:creds.role };
-  startApp();
+  try {
+    // ── Firebase path ──────────────────────────────────────────
+    if(fbMode && AUTH){
+      const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+      const cred = await signInWithEmailAndPassword(AUTH, email, pass);
+      const fbUser = cred.user;
 
-  function showErr(msg){ err.textContent=msg; err.style.display='block'; }
+      if(!hasUidMap()){
+        showLErr('⚙️ Firebase is connected but the BRANCH_USERS map has not been configured. See the Setup Guide.');
+        const { signOut } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+        await signOut(AUTH);
+        resetBtn(); return;
+      }
+
+      const mapping = BRANCH_USERS[fbUser.uid];
+      if(!mapping){
+        showLErr('Your account is not yet assigned to a branch or role. Contact the Regional Overseer.');
+        const { signOut } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+        await signOut(AUTH);
+        resetBtn(); return;
+      }
+
+      CU = { branch:mapping.branch, role:mapping.role, email:fbUser.email, uid:fbUser.uid };
+      startApp();
+
+    } else {
+      // ── Local fallback path ────────────────────────────────────
+      const prefix = email.split('@')[0].toLowerCase();
+      const fb = LOCAL_FALLBACK[prefix];
+
+      // Determine correct password (overseer has separate pass)
+      const expectedPass = (fb && fb.role === 'regional_overseer')
+        ? LOCAL_OVERSEER_PASS : LOCAL_FALLBACK_PASS;
+
+      if(!fb || pass !== expectedPass){
+        showLErr('Invalid email or password.');
+        resetBtn(); return;
+      }
+
+      showBanner('⚠️ Running in local/offline mode. Firebase not yet configured. See the Setup Guide.','warn');
+      CU = { branch:fb.branch, role:fb.role, email };
+      startApp();
+    }
+  } catch(e){
+    console.error('Login error:', e);
+    showLErr(authErrMsg(e.code));
+    resetBtn();
+  }
+
+  function showLErr(msg){ errEl.textContent=msg; errEl.style.display='block'; }
+  function resetBtn(){ btn.disabled=false; btnTxt.textContent='Login to Portal'; }
 }
 
-function doLogout(){
-  CU=null;
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
-  document.getElementById('l-pass').value='';
+async function doLogout(){
+  if(fbMode && AUTH){
+    try { const { signOut } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'); await signOut(AUTH); }
+    catch(e){ console.warn('Sign-out:', e); }
+  }
+  CU = null;
+  hideBanner();
+  // Hide role banners
+  document.getElementById('role-banner-racct').classList.remove('show');
+  document.getElementById('role-banner-over').classList.remove('show');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('l-pass').value = '';
+  document.getElementById('l-btn-text').textContent = 'Login to Portal';
+  document.getElementById('l-btn').disabled = false;
 }
+
 window.doLogin  = doLogin;
 window.doLogout = doLogout;
 
-// ══════════════════════════════════════════════════
-//  APP START
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════
+(async function init(){
+  const ok = await initFirebase();
+  if(ok && AUTH){
+    const { onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    onAuthStateChanged(AUTH, async (fbUser) => {
+      if(fbUser && !CU && hasUidMap()){
+        const mapping = BRANCH_USERS[fbUser.uid];
+        if(mapping){
+          CU = { branch:mapping.branch, role:mapping.role, email:fbUser.email, uid:fbUser.uid };
+          startApp();
+        }
+      }
+    });
+  }
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  APP START — render UI according to role
+// ══════════════════════════════════════════════════════════════
 async function startApp(){
-  document.getElementById('login-screen').style.display='none';
-  document.getElementById('app').style.display='block';
-  const b = BRANCHES[CU.branch];
-  document.getElementById('sb-bname').textContent  = b.name;
-  document.getElementById('sb-bshort').textContent = b.short;
-  document.getElementById('sb-uname').textContent  = CU.user.toUpperCase();
-  document.getElementById('sb-urole').textContent  = CU.role==='admin'?'Regional Administrator':'Branch Accountant';
-  document.getElementById('tb-date').textContent   = new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
-  if(CU.role==='admin') document.getElementById('sb-reg').style.display='flex';
-  const today=new Date().toISOString().split('T')[0];
-  const mo=today.slice(0,7);
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  const role   = CU.role;
+  const branch = CU.branch;
+  const bInfo  = BRANCHES[branch] || BRANCHES['HQ'];
+
+  // ── Sidebar ────────────────────────────────────────────────
+  document.getElementById('sb-bname').textContent  = bInfo.name;
+  document.getElementById('sb-bshort').textContent = bInfo.short;
+  document.getElementById('sb-uname').textContent  = (CU.email||'').toUpperCase();
+  document.getElementById('sb-urole').textContent  = roleLabel(role);
+
+  // Role badge colour in sidebar
+  const rbadge = document.getElementById('sb-rbadge');
+  rbadge.textContent = roleLabel(role);
+  rbadge.className   = 'sb-rbadge ' + (
+    isOverseer(role)          ? 'over'  :
+    isRegionalAccountant(role)? 'racct' : 'acct'
+  );
+
+  // ── Show/hide nav items by role ────────────────────────────
+  // Write items: accountant + regional_accountant + overseer
+  const showWrite = canWrite(role);
+  document.getElementById('sb-income-btn').style.display      = showWrite ? 'flex' : 'none';
+  document.getElementById('sb-exp-btn').style.display         = showWrite ? 'flex' : 'none';
+  document.getElementById('sb-write-sect').style.display      = showWrite ? 'block' : 'none';
+
+  // Regional pages: regional_accountant + regional_overseer
+  document.getElementById('sb-reg').style.display = canViewAll(role) ? 'flex' : 'none';
+
+  // Admin page: overseer only
+  document.getElementById('sb-admin-sect').style.display = isOverseer(role) ? 'block' : 'none';
+  document.getElementById('sb-users-btn').style.display  = isOverseer(role) ? 'flex' : 'none';
+
+  // ── Role-awareness banners inside app ──────────────────────
+  if(isRegionalAccountant(role))
+    document.getElementById('role-banner-racct').classList.add('show');
+  if(isOverseer(role))
+    document.getElementById('role-banner-over').classList.add('show');
+
+  // ── Topbar ─────────────────────────────────────────────────
+  document.getElementById('tb-date').textContent = new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('tb-mode').textContent = fbMode ? 'Live · Cloud' : 'Live · Local';
+  if(fbMode) document.querySelector('.tb-dot').style.background='#2196F3';
+
+  // ── Date defaults ──────────────────────────────────────────
+  const today = new Date().toISOString().split('T')[0];
+  const mo    = today.slice(0,7);
   ['i-date','e-date'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=today; });
   ['r-month','reg-month'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=mo; });
-  document.getElementById('inc-mo-lbl').textContent=new Date().toLocaleString('default',{month:'long',year:'numeric'});
-  document.getElementById('exp-mo-lbl').textContent=new Date().toLocaleString('default',{month:'long',year:'numeric'});
-  // Try Firebase
-  await initFirebase();
-  // Load dashboard
+  document.getElementById('inc-mo-lbl').textContent = new Date().toLocaleString('default',{month:'long',year:'numeric'});
+  document.getElementById('exp-mo-lbl').textContent = new Date().toLocaleString('default',{month:'long',year:'numeric'});
+
+  if(fbMode) hideBanner();
+
   loadDashboard();
 }
 
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 //  NAVIGATION
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 function nav(id, btn){
+  // Block write pages for read-only roles
+  if((id==='income'||id==='expenditure') && !canWrite(CU.role)){
+    alert('Your role does not permit recording transactions.'); return;
+  }
+  // Block regional/admin pages for plain accountants
+  if((id==='regional'||id==='users') && !canViewAll(CU.role) && !isOverseer(CU.role)){
+    alert('Access restricted to Regional staff.'); return;
+  }
+  if(id==='users' && !isOverseer(CU.role)){
+    alert('Only the Regional Overseer can access User Management.'); return;
+  }
+
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(btn) btn.classList.add('active');
-  const titles={dashboard:'Dashboard',income:'Record Income',expenditure:'Record Expenditure',transactions:'All Transactions',reports:'Branch Report',regional:'Regional Overview',setup:'Firebase Setup'};
-  document.getElementById('tb-title').textContent=titles[id]||id;
-  closeSidebar();
-  if(id==='dashboard')   loadDashboard();
-  if(id==='income')      loadIncList();
-  if(id==='expenditure') loadExpList();
-  if(id==='transactions')loadAllTx();
-  if(id==='reports')     buildReport();
-  if(id==='regional')    buildRegional();
-}
-window.nav=nav;
 
-// ── SIDEBAR TOGGLE ─────────────────────────────────
+  const titles={dashboard:'Dashboard',income:'Record Income',expenditure:'Record Expenditure',
+    transactions:'All Transactions',reports:'Branch Report',regional:'Regional Overview',
+    users:'User Management',setup:'Setup Guide'};
+  document.getElementById('tb-title').textContent = titles[id]||id;
+  closeSidebar();
+
+  if(id==='dashboard')    loadDashboard();
+  if(id==='income')       loadIncList();
+  if(id==='expenditure')  loadExpList();
+  if(id==='transactions') loadAllTx();
+  if(id==='reports')      buildReport();
+  if(id==='regional')     buildRegional();
+}
+window.nav = nav;
+
 function openSidebar(){
   document.getElementById('sidebar').classList.add('open');
   document.getElementById('overlay').classList.add('show');
@@ -894,40 +1127,48 @@ function closeSidebar(){
   document.getElementById('overlay').classList.remove('show');
   document.body.style.overflow='';
 }
-window.openSidebar=openSidebar;
-window.closeSidebar=closeSidebar;
+window.openSidebar=openSidebar; window.closeSidebar=closeSidebar;
 window.addEventListener('resize',()=>{ if(window.innerWidth>768) closeSidebar(); });
 
-// ══════════════════════════════════════════════════
+// ── Determine branch scope for data queries ─────────────────
+function queryBranch(){
+  // Regional roles see all; accountants see only their own branch
+  if(canViewAll(CU.role) || isOverseer(CU.role)) return null;
+  return CU.branch;
+}
+
+// ══════════════════════════════════════════════════════════════
 //  DASHBOARD
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 async function loadDashboard(){
-  const br  = CU.role==='admin'?null:CU.branch;
-  const all = await getTxns(br);
+  const all = await getTxns(queryBranch());
   const mo  = new Date().toISOString().slice(0,7);
   const mth = all.filter(t=>t.date&&t.date.startsWith(mo));
   const inc = mth.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
   const exp = mth.filter(t=>t.flow==='expenditure').reduce((s,t)=>s+Number(t.amount),0);
   const net = inc-exp;
 
+  // Extra stat for regional roles: show branch count
+  const extraStat = canViewAll(CU.role) || isOverseer(CU.role)
+    ? `<div class="stat-card c-blue"><div class="sc-ico">🏛️</div><div class="sc-lbl">Active Branches</div><div class="sc-val c-blue">7</div><div class="sc-sub">Across the region</div></div>`
+    : `<div class="stat-card c-gold"><div class="sc-ico">📋</div><div class="sc-lbl">Records This Month</div><div class="sc-val c-gold">${mth.length}</div><div class="sc-sub">Total entries</div></div>`;
+
   document.getElementById('stat-grid').innerHTML=`
     <div class="stat-card c-purple"><div class="sc-ico">💰</div><div class="sc-lbl">Income This Month</div><div class="sc-val c-purple">₦${fmt(inc)}</div><div class="sc-sub">All income types</div></div>
     <div class="stat-card c-red"><div class="sc-ico">💸</div><div class="sc-lbl">Expenditure This Month</div><div class="sc-val c-red">₦${fmt(exp)}</div><div class="sc-sub">All expense types</div></div>
     <div class="stat-card ${net>=0?'c-green':'c-red'}"><div class="sc-ico">${net>=0?'✅':'⚠️'}</div><div class="sc-lbl">Net Balance</div><div class="sc-val ${net>=0?'c-green':'c-red'}">₦${fmt(net)}</div><div class="sc-sub">${net>=0?'Surplus':'Deficit'}</div></div>
-    <div class="stat-card c-gold"><div class="sc-ico">📋</div><div class="sc-lbl">Records This Month</div><div class="sc-val c-gold">${mth.length}</div><div class="sc-sub">Total entries</div></div>`;
+    ${extraStat}`;
 
-  // Bar chart
   const months=getLast6();
   const bI=months.map(m=>all.filter(t=>t.flow==='income'&&t.date&&t.date.startsWith(m)).reduce((s,t)=>s+Number(t.amount),0));
   const bE=months.map(m=>all.filter(t=>t.flow==='expenditure'&&t.date&&t.date.startsWith(m)).reduce((s,t)=>s+Number(t.amount),0));
-  const bL=months.map(m=>{const[y,mo]=m.split('-');return new Date(y,mo-1).toLocaleString('default',{month:'short',year:'2-digit'});});
+  const bL=months.map(m=>{const[y,mn]=m.split('-');return new Date(y,mn-1).toLocaleString('default',{month:'short',year:'2-digit'});});
   destroyC(barC);
   barC=new Chart(document.getElementById('barChart'),{type:'bar',data:{labels:bL,datasets:[
     {label:'Income',data:bI,backgroundColor:'rgba(91,31,162,.72)',borderColor:'#5B1FA2',borderWidth:1.5,borderRadius:4},
     {label:'Expenditure',data:bE,backgroundColor:'rgba(204,0,0,.62)',borderColor:'#CC0000',borderWidth:1.5,borderRadius:4}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{family:'Montserrat',size:10},boxWidth:10}}},scales:{y:{ticks:{callback:v=>'₦'+fmtK(v),font:{family:'Montserrat',size:9}},grid:{color:'rgba(0,0,0,.05)'}},x:{ticks:{font:{family:'Montserrat',size:9}}}}}});
 
-  // Doughnut
   const cats={tithe:0,offering:0,donation:0,vow:0,thanksgiving:0,other:0};
   mth.filter(t=>t.flow==='income').forEach(t=>{
     if(t.type==='tithe') cats.tithe+=Number(t.amount);
@@ -943,7 +1184,6 @@ async function loadDashboard(){
     datasets:[{data:Object.values(cats),backgroundColor:['#5B1FA2','#C9940A','#2563EB','#EC4899','#16A34A','#9CA3AF'],borderWidth:2,borderColor:'#fff'}]
   },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Montserrat',size:9},boxWidth:10,padding:8}}}}});
 
-  // Recent table
   const recent=all.slice(0,10);
   document.getElementById('recent-tb').innerHTML=recent.length?recent.map(t=>`<tr>
     <td>${t.date||'—'}</td>
@@ -952,32 +1192,38 @@ async function loadDashboard(){
     <td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td>
     <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.desc||'—'}</td>
     <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:${t.flow==='income'?'var(--green)':'var(--red)'};">${t.flow==='income'?'+':'-'}₦${fmt(Number(t.amount))}</td>
-  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;font-style:italic;">No transactions yet. Start by recording income or expenditure.</td></tr>';
+  </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;font-style:italic;">No transactions yet.</td></tr>';
 }
 
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 //  INCOME
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 async function saveIncome(){
+  if(!canWrite(CU.role)){ alert('Your role does not permit recording income.'); return; }
   const date=gv('i-date'), type=gv('i-type'), amount=parseFloat(gv('i-amount'));
   if(!date||!type||!amount||amount<=0){ showA('inc-err'); return; }
   const btn=document.getElementById('i-save-btn');
   btn.textContent='Saving…'; btn.disabled=true;
   try {
-    await addTxn({ id:uid(), branch:CU.branch, flow:'income', type, amount, date,
-      receiver:gv('i-rcvr'), event:gv('i-event'), receipt:gv('i-rcpt'), desc:gv('i-desc') });
+    // Overseer can optionally record for any branch; accountants always use own branch
+    const recordBranch = isOverseer(CU.role) ? (gv('i-branch-sel')||CU.branch) : CU.branch;
+    await addTxn({ id:uid(), branch:recordBranch, flow:'income', type, amount, date,
+      receiver:gv('i-rcvr'), event:gv('i-event'), receipt:gv('i-rcpt'), desc:gv('i-desc'),
+      recordedBy:CU.email });
     showA('inc-ok'); clearIncome(); loadIncList();
   } catch(e){ showA('inc-err'); console.error(e); }
   btn.textContent='💾 Save Income'; btn.disabled=false;
 }
 async function loadIncList(){
   const mo=new Date().toISOString().slice(0,7);
-  const rows=(await getTxns(CU.branch)).filter(t=>t.flow==='income'&&t.date&&t.date.startsWith(mo));
+  const scope = isOverseer(CU.role) ? null : CU.branch;
+  const rows=(await getTxns(scope)).filter(t=>t.flow==='income'&&t.date&&t.date.startsWith(mo));
+  const showDel = canDelete(CU.role);
   document.getElementById('inc-tb').innerHTML=rows.length?rows.map(t=>`<tr>
     <td>${t.date}</td><td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td>
     <td>${t.event||'—'}</td><td>${t.receiver||'—'}</td>
     <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:var(--green);">₦${fmt(Number(t.amount))}</td>
-    <td><button class="btn btn-g btn-sm" onclick="delRecord('${t.id}','inc')">🗑️</button></td>
+    <td>${showDel?`<button class="btn btn-g btn-sm" onclick="delRecord('${t.id}','inc')">🗑️</button>`:'—'}</td>
   </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.5rem;font-style:italic;">No income records this month</td></tr>';
   document.getElementById('inc-total').textContent=fmt(rows.reduce((s,t)=>s+Number(t.amount),0));
 }
@@ -987,29 +1233,34 @@ function clearIncome(){
 }
 window.saveIncome=saveIncome; window.clearIncome=clearIncome;
 
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 //  EXPENDITURE
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 async function saveExpenditure(){
+  if(!canWrite(CU.role)){ alert('Your role does not permit recording expenditure.'); return; }
   const date=gv('e-date'), type=gv('e-type'), amount=parseFloat(gv('e-amount'));
   if(!date||!type||!amount||amount<=0){ showA('exp-err'); return; }
   const btn=document.getElementById('e-save-btn');
   btn.textContent='Saving…'; btn.disabled=true;
   try {
-    await addTxn({ id:uid(), branch:CU.branch, flow:'expenditure', type, amount, date,
-      beneficiary:gv('e-benef'), approved:gv('e-appr'), voucher:gv('e-vchr'), desc:gv('e-desc') });
+    const recordBranch = isOverseer(CU.role) ? (gv('e-branch-sel')||CU.branch) : CU.branch;
+    await addTxn({ id:uid(), branch:recordBranch, flow:'expenditure', type, amount, date,
+      beneficiary:gv('e-benef'), approved:gv('e-appr'), voucher:gv('e-vchr'), desc:gv('e-desc'),
+      recordedBy:CU.email });
     showA('exp-ok'); clearExpenditure(); loadExpList();
   } catch(e){ showA('exp-err'); console.error(e); }
   btn.textContent='💾 Save Expenditure'; btn.disabled=false;
 }
 async function loadExpList(){
   const mo=new Date().toISOString().slice(0,7);
-  const rows=(await getTxns(CU.branch)).filter(t=>t.flow==='expenditure'&&t.date&&t.date.startsWith(mo));
+  const scope = isOverseer(CU.role) ? null : CU.branch;
+  const rows=(await getTxns(scope)).filter(t=>t.flow==='expenditure'&&t.date&&t.date.startsWith(mo));
+  const showDel = canDelete(CU.role);
   document.getElementById('exp-tb').innerHTML=rows.length?rows.map(t=>`<tr>
     <td>${t.date}</td><td><span class="badge ${tCls(t.type)}">${tLbl(t.type)}</span></td>
     <td>${t.beneficiary||'—'}</td><td>${t.approved||'—'}</td>
     <td style="font-family:'Montserrat',sans-serif;font-weight:700;color:var(--red);">₦${fmt(Number(t.amount))}</td>
-    <td><button class="btn btn-g btn-sm" onclick="delRecord('${t.id}','exp')">🗑️</button></td>
+    <td>${showDel?`<button class="btn btn-g btn-sm" onclick="delRecord('${t.id}','exp')">🗑️</button>`:'—'}</td>
   </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.5rem;font-style:italic;">No expenditure records this month</td></tr>';
   document.getElementById('exp-total').textContent=fmt(rows.reduce((s,t)=>s+Number(t.amount),0));
 }
@@ -1019,12 +1270,11 @@ function clearExpenditure(){
 }
 window.saveExpenditure=saveExpenditure; window.clearExpenditure=clearExpenditure;
 
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 //  ALL TRANSACTIONS
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 async function loadAllTx(filter={}){
-  const br=CU.role==='admin'?null:CU.branch;
-  let rows=await getTxns(br);
+  let rows=await getTxns(queryBranch());
   if(filter.from) rows=rows.filter(t=>t.date>=filter.from);
   if(filter.to)   rows=rows.filter(t=>t.date<=filter.to);
   if(filter.type) rows=rows.filter(t=>t.flow===filter.type);
@@ -1047,13 +1297,12 @@ function filterTx(){ loadAllTx({from:gv('f-from'),to:gv('f-to'),type:gv('f-type'
 function clearFilter(){ ['f-from','f-to','f-type'].forEach(id=>sv(id,'')); loadAllTx(); }
 window.loadAllTx=loadAllTx; window.filterTx=filterTx; window.clearFilter=clearFilter;
 
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 //  REPORTS
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 async function buildReport(){
   const mo=gv('r-month')||new Date().toISOString().slice(0,7);
-  const br=CU.role==='admin'?null:CU.branch;
-  const all=await getTxns(br);
+  const all=await getTxns(queryBranch());
   const mth=all.filter(t=>t.date&&t.date.startsWith(mo));
   const iR=mth.filter(t=>t.flow==='income');
   const eR=mth.filter(t=>t.flow==='expenditure');
@@ -1087,12 +1336,13 @@ async function buildReport(){
 }
 window.buildReport=buildReport;
 
-// ══════════════════════════════════════════════════
-//  REGIONAL
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  REGIONAL OVERVIEW
+// ══════════════════════════════════════════════════════════════
 async function buildRegional(){
+  if(!canViewAll(CU.role) && !isOverseer(CU.role)){ alert('Access restricted.'); return; }
   const mo=gv('reg-month')||new Date().toISOString().slice(0,7);
-  const all=await getTxns(null);
+  const all=await getTxns(null); // always all branches
   const mth=all.filter(t=>t.date&&t.date.startsWith(mo));
   const tI=mth.filter(t=>t.flow==='income').reduce((s,t)=>s+Number(t.amount),0);
   const tE=mth.filter(t=>t.flow==='expenditure').reduce((s,t)=>s+Number(t.amount),0);
@@ -1125,29 +1375,6 @@ async function buildRegional(){
 }
 window.buildRegional=buildRegional;
 
-// ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 //  DELETE
-// ══════════════════════════════════════════════════
-async function delRecord(id, page){
-  if(!confirm('Delete this record permanently?')) return;
-  try { await delTxn(id); }
-  catch(e){ alert('Could not delete. Try again.'); return; }
-  if(page==='inc') loadIncList();
-  if(page==='exp') loadExpList();
-}
-window.delRecord=delRecord;
-
-// ══════════════════════════════════════════════════
-//  HELPERS
-// ══════════════════════════════════════════════════
-function gv(id){ const el=document.getElementById(id); return el?el.value:''; }
-function sv(id,v){ const el=document.getElementById(id); if(el) el.value=v; }
-function showA(id,msg){
-  const el=document.getElementById(id);
-  if(msg) el.textContent=(id.endsWith('err')?'⚠️ ':'✅ ')+msg;
-  el.style.display='block';
-  setTimeout(()=>el.style.display='none',4500);
-}
-</script>
-</body>
-</html>
+// ═══════════════════════════════════════
