@@ -416,7 +416,7 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
           <div class="sb-urole" id="sb-urole">—</div>
         </div>
       </div>
-      <button class="btn-out" id="logout-btn-main">↩ Sign Out</button>
+      <button class="btn-out" id="logout-btn">↩ Sign Out</button>
     </div>
   </aside>
 
@@ -678,7 +678,7 @@ tfoot td { border-top:2px solid var(--border); padding:.65rem .9rem; }
           <p style="margin-top:.5rem;">After creating each user, copy the <strong>UID</strong> shown in the Users table — you will need it in Step 7.</p>
         </div></div>
         <div class="s-step"><div class="s-num">4</div><div class="s-body"><h4>Get Your Web App Config</h4><p>Project Settings → click the <strong>&lt;/&gt;</strong> web icon → Register app as <strong>mfm-portal</strong> → Copy the <code>firebaseConfig</code> object.</p></div></div>
-        <div class="s-step"><div class="s-num">5</div><div class="s-body"><h4>Paste Config into This File</h4><p>Open this HTML file in Notepad++ → Find <code>firebaseConfig</code> in the &lt;script type="module"&gt; block → Replace the placeholder values with your real config.</p></div></div>
+        <div class="s-step"><div class="s-num">5</div><div class="s-body"><h4>Paste Config into This File</h4><p>Open this HTML file in Notepad++ → Find <code>firebaseConfig</code> in the &lt;script&gt; block → Replace the placeholder values with your real config.</p></div></div>
         <div class="s-step"><div class="s-num">6</div><div class="s-body"><h4>Enable Firestore Database</h4><p>Firebase Console → <strong>Firestore Database</strong> → Create database → Production mode → Region: <code>europe-west1</code> → Enable.</p></div></div>
         <div class="s-step"><div class="s-num">7</div><div class="s-body"><h4>Update BRANCH_USERS Map</h4><p>In this file find the <code>BRANCH_USERS</code> object and fill in each Firebase UID with the correct branch and role:</p>
           <code>"PASTE_UID_HERE": { branch:"HQ", role:"accountant" }</code><br>
@@ -729,19 +729,19 @@ const firebaseConfig = {
 //
 const BRANCH_USERS = {
   // ── Branch Accountants ──────────────────────────────────────
-   "4t6x9U1ogYbPddWskuG99ix6aDz1": { branch:"HQ",  role:"accountant" },
-   "jtrjl4kj6yTwKkV4Ol3uBaaIOdk2": { branch:"B1",  role:"accountant" },
-   "GDIQniTUCHXtLMWjBC8aWLsF8nC2": { branch:"B2",  role:"accountant" },
-   "U0tVDAENbGQ6hApeDrayyGw2VLt1": { branch:"B3",  role:"accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"HQ",  role:"accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"B1",  role:"accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"B2",  role:"accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"B3",  role:"accountant" },
   // "REPLACE_WITH_FIREBASE_UID": { branch:"B4",  role:"accountant" },
   // "REPLACE_WITH_FIREBASE_UID": { branch:"B5",  role:"accountant" },
   // "REPLACE_WITH_FIREBASE_UID": { branch:"B6",  role:"accountant" },
 
   // ── Regional Accountant (view-only all branches) ────────────
-   "oCfXgMk3QhXGeWwZICjJSQBUrpg2": { branch:"REGIONAL", role:"regional_accountant" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"REGIONAL", role:"regional_accountant" },
 
   // ── Regional Overseer (sole full administrator) ─────────────
-   "zcwpSITtjuWDugvTeJCbUwLcUQL2": { branch:"REGIONAL", role:"regional_overseer" },
+  // "REPLACE_WITH_FIREBASE_UID": { branch:"REGIONAL", role:"regional_overseer" },
 };
 
 // ── 3. LOCAL FALLBACK (for offline/testing only) ───────────────
@@ -837,6 +837,17 @@ function tCls(t){
 function fmt(n){ return Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtK(n){ if(n>=1e6) return(n/1e6).toFixed(1)+'M'; if(n>=1e3) return(n/1e3).toFixed(0)+'K'; return n; }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+// ── DOM HELPERS ──────────────────────────────────────────────
+function gv(id){ var e=document.getElementById(id); return e ? e.value : ''; }
+function sv(id,v){ var e=document.getElementById(id); if(e) e.value=v; }
+function showA(id, msg, isErr){
+  var e=document.getElementById(id);
+  if(msg!==undefined) e.textContent=(isErr ? 'ERROR: ' : '') + msg;
+  e.style.display='block';
+  setTimeout(function(){ e.style.display='none'; },4500);
+}
+
 function getLast6(){ const m=[],n=new Date(); for(let i=5;i>=0;i--){const d=new Date(n.getFullYear(),n.getMonth()-i,1);m.push(d.toISOString().slice(0,7));} return m; }
 function destroyC(c){ if(c) try{c.destroy();}catch(e){} }
 
@@ -1006,7 +1017,6 @@ async function doLogout(){
 
 
 
-
 // ══════════════════════════════════════════════════════════════
 //  FORGOT PASSWORD
 // ══════════════════════════════════════════════════════════════
@@ -1172,7 +1182,6 @@ function nav(id, btn){
   if(id==='reports')      buildReport();
   if(id==='regional')     buildRegional();
 }
-window.nav = nav;
 
 function openSidebar(){
   document.getElementById('sidebar').classList.add('open');
@@ -1257,16 +1266,16 @@ async function loadDashboard(){
 // ══════════════════════════════════════════════════════════════
 async function saveIncome(){
   if(!canWrite(CU.role)){ alert('Your role does not permit recording income.'); return; }
-  const date=gv('i-date'), type=gv('i-type'), amount=parseFloat(gv('i-amount'));
-  if(!date||!type||!amount||amount<=0){ showA('inc-err'); return; }
-  const btn=document.getElementById('i-save-btn');
+  var date=gv('i-date'), itype=gv('i-type'), amount=parseFloat(gv('i-amount'));
+  var type=itype; if(!date||!type||!amount||amount<=0){ showA('inc-err'); return; }
+  var btn=document.getElementById('i-save-btn');
   btn.textContent='Saving…'; btn.disabled=true;
   try {
     // Overseer can optionally record for any branch; accountants always use own branch
-    const recordBranch = isOverseer(CU.role) ? (gv('i-branch-sel')||CU.branch) : CU.branch;
-    await addTxn({ id:uid(), branch:recordBranch, flow:'income', type, amount, date,
+    var recordBranch = CU.branch;
+    await addTxn({id:uid(), branch:CU.branch, flow:'income', type:type, amount:amount, date:date,
       receiver:gv('i-rcvr'), event:gv('i-event'), receipt:gv('i-rcpt'), desc:gv('i-desc'),
-      recordedBy:CU.email });
+      recordedBy:CU.email});
     showA('inc-ok'); clearIncome(); loadIncList();
   } catch(e){ showA('inc-err'); console.error(e); }
   btn.textContent='💾 Save Income'; btn.disabled=false;
@@ -1285,7 +1294,7 @@ async function loadIncList(){
   document.getElementById('inc-total').textContent=fmt(rows.reduce((s,t)=>s+Number(t.amount),0));
 }
 function clearIncome(){
-  ['i-type','i-amount','i-rcvr','i-event','i-rcpt','i-desc'].forEach(id=>sv(id,''));
+  ['i-type','i-amount','i-rcvr','i-event','i-rcpt','i-desc'].forEachfunction(id){ sv(id,''); };
   sv('i-date',new Date().toISOString().split('T')[0]);
 }
 window.saveIncome=saveIncome; window.clearIncome=clearIncome;
@@ -1295,15 +1304,15 @@ window.saveIncome=saveIncome; window.clearIncome=clearIncome;
 // ══════════════════════════════════════════════════════════════
 async function saveExpenditure(){
   if(!canWrite(CU.role)){ alert('Your role does not permit recording expenditure.'); return; }
-  const date=gv('e-date'), type=gv('e-type'), amount=parseFloat(gv('e-amount'));
-  if(!date||!type||!amount||amount<=0){ showA('exp-err'); return; }
-  const btn=document.getElementById('e-save-btn');
+  var date=gv('e-date'), etype=gv('e-type'), amount=parseFloat(gv('e-amount'));
+  var type=etype; if(!date||!type||!amount||amount<=0){ showA('exp-err'); return; }
+  var btn=document.getElementById('e-save-btn');
   btn.textContent='Saving…'; btn.disabled=true;
   try {
     const recordBranch = isOverseer(CU.role) ? (gv('e-branch-sel')||CU.branch) : CU.branch;
-    await addTxn({ id:uid(), branch:recordBranch, flow:'expenditure', type, amount, date,
+    await addTxn({id:uid(), branch:CU.branch, flow:'expenditure', type:type, amount:amount, date:date,
       beneficiary:gv('e-benef'), approved:gv('e-appr'), voucher:gv('e-vchr'), desc:gv('e-desc'),
-      recordedBy:CU.email });
+      recordedBy:CU.email});
     showA('exp-ok'); clearExpenditure(); loadExpList();
   } catch(e){ showA('exp-err'); console.error(e); }
   btn.textContent='💾 Save Expenditure'; btn.disabled=false;
@@ -1322,7 +1331,7 @@ async function loadExpList(){
   document.getElementById('exp-total').textContent=fmt(rows.reduce((s,t)=>s+Number(t.amount),0));
 }
 function clearExpenditure(){
-  ['e-type','e-amount','e-benef','e-appr','e-vchr','e-desc'].forEach(id=>sv(id,''));
+  ['e-type','e-amount','e-benef','e-appr','e-vchr','e-desc'].forEachfunction(id){ sv(id,''); };
   sv('e-date',new Date().toISOString().split('T')[0]);
 }
 window.saveExpenditure=saveExpenditure; window.clearExpenditure=clearExpenditure;
@@ -1351,7 +1360,7 @@ async function loadAllTx(filter={}){
   net.style.color=(iS-eS)>=0?'var(--green)':'var(--red)';
 }
 function filterTx(){ loadAllTx({from:gv('f-from'),to:gv('f-to'),type:gv('f-type')}); }
-function clearFilter(){ ['f-from','f-to','f-type'].forEach(id=>sv(id,'')); loadAllTx(); }
+function clearFilter(){ ['f-from','f-to','f-type'].forEachfunction(id){ sv(id,''); }; loadAllTx(); }
 window.loadAllTx=loadAllTx; window.filterTx=filterTx; window.clearFilter=clearFilter;
 
 // ══════════════════════════════════════════════════════════════
@@ -1392,7 +1401,6 @@ async function buildReport(){
   document.getElementById('r-exp-sum').textContent=fmt(tE);
 }
 
-
 // ══════════════════════════════════════════════════════════════
 //  REGIONAL OVERVIEW
 // ══════════════════════════════════════════════════════════════
@@ -1431,10 +1439,9 @@ async function buildRegional(){
   </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem;font-style:italic;">No records for this period</td></tr>';
 }
 
-
-// ══════════════════════════════════════════════════════════════
+// ================================================================
 //  DELETE
-// ═══════════════════════════════════════
+// ================================================================
 async function delRecord(id, page){
   if(!confirm('Delete this record permanently?')) return;
   try{ await delTxn(id); }
@@ -1443,25 +1450,27 @@ async function delRecord(id, page){
   if(page==='exp') loadExpList();
 }
 
-// ── BUTTON WIRING ─────────────────────────────────────────────
+// ================================================================
+//  EVENT WIRING (runs after page loads)
+// ================================================================
 (function(){
   function wire(){
-    var lb = document.getElementById('l-btn-main');
+    var lb=document.getElementById('l-btn-main');
     if(lb) lb.addEventListener('click', doLogin);
-    var lf = document.getElementById('l-forgot-btn');
+    var lf=document.getElementById('l-forgot-btn');
     if(lf) lf.addEventListener('click', doForgotPassword);
-    var lo = document.getElementById('logout-btn-main');
+    var lo=document.getElementById('logout-btn');
     if(lo) lo.addEventListener('click', doLogout);
-    var ep = document.getElementById('l-pass');
+    var ep=document.getElementById('l-pass');
     if(ep) ep.addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
-    var em = document.getElementById('l-email');
+    var em=document.getElementById('l-email');
     if(em) em.addEventListener('keydown', function(e){ if(e.key==='Enter') document.getElementById('l-pass').focus(); });
   }
   if(document.readyState==='loading'){
     document.addEventListener('DOMContentLoaded', wire);
   } else { wire(); }
   // Boot Firebase
-  if(typeof initFirebase === 'function') initFirebase();
+  initFirebase();
 })();
 </script>
 </body>
