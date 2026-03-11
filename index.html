@@ -17,8 +17,16 @@
     initializeApp, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail,
     getFirestore, collection, getDocs, addDoc, doc, deleteDoc, serverTimestamp
   };
-  // Signal that Firebase is ready
-  window.dispatchEvent(new Event('fb-ready'));
+  // Boot the app now that Firebase modules are available.
+  // _appBoot is defined in the inline script below; use DOMContentLoaded to ensure it exists.
+  function tryBoot(){
+    if(typeof window._appBoot === 'function') window._appBoot();
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', tryBoot);
+  } else {
+    tryBoot();
+  }
 </script>
 <style>
 :root {
@@ -909,14 +917,8 @@ function hasUidMap(){
 }
 async function initFirebase(){
   if(!isFirebaseConfigured()) return false;
+  if(!window._FB){ console.error('Firebase modules not loaded yet.'); return false; }
   try {
-    // Wait for the module preload to attach window._FB (max 5 s)
-    if(!window._FB){
-      await new Promise((resolve, reject) => {
-        const t = setTimeout(() => reject(new Error('Firebase module load timeout')), 5000);
-        window.addEventListener('fb-ready', () => { clearTimeout(t); resolve(); }, { once: true });
-      });
-    }
     const { initializeApp, getAuth, getFirestore } = window._FB;
     const app = initializeApp(firebaseConfig);
     AUTH = getAuth(app);
@@ -1084,9 +1086,9 @@ async function doForgotPassword(){
 
 
 // ══════════════════════════════════════════════════════════════
-//  INIT
+//  INIT  — called by the module script once window._FB is ready
 // ══════════════════════════════════════════════════════════════
-(async function init(){
+window._appBoot = async function init(){
   const ok = await initFirebase();
   if(ok && AUTH){
     const { onAuthStateChanged } = window._FB;
@@ -1100,7 +1102,10 @@ async function doForgotPassword(){
       }
     });
   }
-})();
+};
+// If the module script already ran before this inline script (can happen when cached),
+// call _appBoot immediately.
+if(window._FB) window._appBoot();
 
 // ══════════════════════════════════════════════════════════════
 //  APP START — render UI according to role
@@ -1486,8 +1491,6 @@ async function delRecord(id, page){
   if(document.readyState==='loading'){
     document.addEventListener('DOMContentLoaded', wire);
   } else { wire(); }
-  // Boot Firebase
-  initFirebase();
 })();
 </script>
 </body>
