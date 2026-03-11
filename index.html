@@ -1273,7 +1273,7 @@ async function saveIncome(){
   try {
     // Overseer can optionally record for any branch; accountants always use own branch
     var recordBranch = CU.branch;
-    await addTxn({id:uid(), branch:CU.branch, flow:'income', type:type, amount:amount, date:date,
+    await addTxn({id:uid(), branch:recordBranch, flow:'income', type:type, amount:amount, date:date,
       receiver:gv('i-rcvr'), event:gv('i-event'), receipt:gv('i-rcpt'), desc:gv('i-desc'),
       recordedBy:CU.email});
     showA('inc-ok'); clearIncome(); loadIncList();
@@ -1294,7 +1294,7 @@ async function loadIncList(){
   document.getElementById('inc-total').textContent=fmt(rows.reduce((s,t)=>s+Number(t.amount),0));
 }
 function clearIncome(){
-  ['i-type','i-amount','i-rcvr','i-event','i-rcpt','i-desc'].forEachfunction(id){ sv(id,''); };
+  ['i-type','i-amount','i-rcvr','i-event','i-rcpt','i-desc'].forEach(function(id){ sv(id,''); });
   sv('i-date',new Date().toISOString().split('T')[0]);
 }
 window.saveIncome=saveIncome; window.clearIncome=clearIncome;
@@ -1310,7 +1310,7 @@ async function saveExpenditure(){
   btn.textContent='Saving…'; btn.disabled=true;
   try {
     const recordBranch = isOverseer(CU.role) ? (gv('e-branch-sel')||CU.branch) : CU.branch;
-    await addTxn({id:uid(), branch:CU.branch, flow:'expenditure', type:type, amount:amount, date:date,
+    await addTxn({id:uid(), branch:recordBranch, flow:'expenditure', type:type, amount:amount, date:date,
       beneficiary:gv('e-benef'), approved:gv('e-appr'), voucher:gv('e-vchr'), desc:gv('e-desc'),
       recordedBy:CU.email});
     showA('exp-ok'); clearExpenditure(); loadExpList();
@@ -1331,7 +1331,7 @@ async function loadExpList(){
   document.getElementById('exp-total').textContent=fmt(rows.reduce((s,t)=>s+Number(t.amount),0));
 }
 function clearExpenditure(){
-  ['e-type','e-amount','e-benef','e-appr','e-vchr','e-desc'].forEachfunction(id){ sv(id,''); };
+  ['e-type','e-amount','e-benef','e-appr','e-vchr','e-desc'].forEach(function(id){ sv(id,''); });
   sv('e-date',new Date().toISOString().split('T')[0]);
 }
 window.saveExpenditure=saveExpenditure; window.clearExpenditure=clearExpenditure;
@@ -1360,7 +1360,7 @@ async function loadAllTx(filter={}){
   net.style.color=(iS-eS)>=0?'var(--green)':'var(--red)';
 }
 function filterTx(){ loadAllTx({from:gv('f-from'),to:gv('f-to'),type:gv('f-type')}); }
-function clearFilter(){ ['f-from','f-to','f-type'].forEachfunction(id){ sv(id,''); }; loadAllTx(); }
+function clearFilter(){ ['f-from','f-to','f-type'].forEach(function(id){ sv(id,''); }); loadAllTx(); }
 window.loadAllTx=loadAllTx; window.filterTx=filterTx; window.clearFilter=clearFilter;
 
 // ══════════════════════════════════════════════════════════════
