@@ -6,6 +6,20 @@
 <title>MFM Financial Portal – Akure Region</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<!-- Firebase loaded as module and exposed as window._FB so dynamic import() is not needed -->
+<script type="module">
+  import { initializeApp }            from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
+                                       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+  import { getFirestore, collection, getDocs, addDoc, doc, deleteDoc, serverTimestamp }
+                                       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+  window._FB = {
+    initializeApp, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail,
+    getFirestore, collection, getDocs, addDoc, doc, deleteDoc, serverTimestamp
+  };
+  // Signal that Firebase is ready
+  window.dispatchEvent(new Event('fb-ready'));
+</script>
 <style>
 :root {
   --purple:#5B1FA2; --purple-dk:#3D1170; --purple-lt:#7B3CC3;
@@ -861,7 +875,7 @@ function lsDel(id){ lsSave(lsGet().filter(t=>t.id!==id)); }
 async function getTxns(branchId){
   if(fbMode && DB){
     try {
-      const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      const { collection, getDocs } = window._FB;
       const snap = await getDocs(collection(DB,'transactions'));
       let docs = snap.docs.map(d=>({id:d.id,...d.data()}));
       if(branchId && branchId!=='REGIONAL') docs=docs.filter(t=>t.branch===branchId);
@@ -874,13 +888,13 @@ async function getTxns(branchId){
 }
 async function addTxn(rec){
   if(fbMode && DB){
-    const { collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const { collection, addDoc, serverTimestamp } = window._FB;
     await addDoc(collection(DB,'transactions'),{...rec,createdAt:serverTimestamp()});
   } else { lsAdd(rec); }
 }
 async function delTxn(id){
   if(fbMode && DB){
-    const { doc, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const { doc, deleteDoc } = window._FB;
     await deleteDoc(doc(DB,'transactions',id));
   } else { lsDel(id); }
 }
@@ -896,9 +910,14 @@ function hasUidMap(){
 async function initFirebase(){
   if(!isFirebaseConfigured()) return false;
   try {
-    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-    const { getAuth }       = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-    const { getFirestore }  = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    // Wait for the module preload to attach window._FB (max 5 s)
+    if(!window._FB){
+      await new Promise((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error('Firebase module load timeout')), 5000);
+        window.addEventListener('fb-ready', () => { clearTimeout(t); resolve(); }, { once: true });
+      });
+    }
+    const { initializeApp, getAuth, getFirestore } = window._FB;
     const app = initializeApp(firebaseConfig);
     AUTH = getAuth(app);
     DB   = getFirestore(app);
@@ -948,13 +967,12 @@ async function doLogin(){
   try {
     // ── Firebase path ──────────────────────────────────────────
     if(fbMode && AUTH){
-      const { signInWithEmailAndPassword } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+      const { signInWithEmailAndPassword, signOut } = window._FB;
       const cred = await signInWithEmailAndPassword(AUTH, email, pass);
       const fbUser = cred.user;
 
       if(!hasUidMap()){
         showLErr('⚙️ Firebase is connected but the BRANCH_USERS map has not been configured. See the Setup Guide.');
-        const { signOut } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
         await signOut(AUTH);
         resetBtn(); return;
       }
@@ -962,7 +980,6 @@ async function doLogin(){
       const mapping = BRANCH_USERS[fbUser.uid];
       if(!mapping){
         showLErr('Your account is not yet assigned to a branch or role. Contact the Regional Overseer.');
-        const { signOut } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
         await signOut(AUTH);
         resetBtn(); return;
       }
@@ -1000,7 +1017,7 @@ async function doLogin(){
 
 async function doLogout(){
   if(fbMode && AUTH){
-    try { const { signOut } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'); await signOut(AUTH); }
+    try { const { signOut } = window._FB; await signOut(AUTH); }
     catch(e){ console.warn('Sign-out:', e); }
   }
   CU = null;
@@ -1046,7 +1063,7 @@ async function doForgotPassword(){
   btnTxt.innerHTML = '<span class="spin"></span> Sending…';
 
   try {
-    const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    const { sendPasswordResetEmail } = window._FB;
     await sendPasswordResetEmail(AUTH, email);
     okEl.innerHTML    = `✅ Password reset email sent to <strong>${email}</strong>.<br>Check your inbox (and spam folder) and follow the link to set a new password.`;
     okEl.style.display = 'block';
@@ -1072,7 +1089,7 @@ async function doForgotPassword(){
 (async function init(){
   const ok = await initFirebase();
   if(ok && AUTH){
-    const { onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    const { onAuthStateChanged } = window._FB;
     onAuthStateChanged(AUTH, async (fbUser) => {
       if(fbUser && !CU && hasUidMap()){
         const mapping = BRANCH_USERS[fbUser.uid];
